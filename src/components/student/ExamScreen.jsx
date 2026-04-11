@@ -8,16 +8,8 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
   const [submittingAnswer, setSubmittingAnswer] = useState(false)
   const autoSubmitCalledRef = useRef(false)
 
-  const {
-    status,
-    currentQuestion,
-    currentIndex,
-    totalQuestions,
-    result,
-    error,
-    submitAnswer,
-    autoSubmit,
-  } = useExamState({ batch, rollNumber, studentName })
+  const { status, currentQuestion, currentIndex, totalQuestions,
+    result, error, submitAnswer, autoSubmit } = useExamState({ batch, rollNumber, studentName })
 
   const isLastQuestion = currentIndex === totalQuestions - 1
 
@@ -26,14 +18,13 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
     autoSubmitCalledRef.current = true
     autoSubmit()
   }
-
   const handleBatchEnded = () => {
     if (autoSubmitCalledRef.current) return
     autoSubmitCalledRef.current = true
     autoSubmit()
   }
 
-  const { remainingFormatted, isUrgent, isExpired } = useTimer({
+  const { remainingFormatted, isUrgent, isExpired, syncStatus } = useTimer({
     scheduledStart: batch.scheduled_start,
     durationMinutes: batch.duration_minutes,
     onTimeUp: handleTimeUp,
@@ -42,18 +33,8 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
     enabled: status === 'ready',
   })
 
-  // Reset selected answer when question changes
-  useEffect(() => {
-    setSelectedLabel(null)
-    setShowConfirm(false)
-  }, [currentIndex])
-
-  // Transition to result screen when done
-  useEffect(() => {
-    if (status === 'submitted' && result) {
-      onComplete(result)
-    }
-  }, [status, result])
+  useEffect(() => { setSelectedLabel(null); setShowConfirm(false) }, [currentIndex])
+  useEffect(() => { if (status === 'submitted' && result) onComplete(result) }, [status, result])
 
   async function handleNext() {
     if (!selectedLabel || submittingAnswer) return
@@ -62,25 +43,13 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
     setSubmittingAnswer(false)
   }
 
-  function handleSubmitClick() {
-    if (!selectedLabel) return
-    setShowConfirm(true)
-  }
-
-  async function handleConfirmSubmit() {
-    setShowConfirm(false)
-    if (!selectedLabel || submittingAnswer) return
-    setSubmittingAnswer(true)
-    await submitAnswer(selectedLabel, true)
-    setSubmittingAnswer(false)
-  }
-
+  // ── Loading ──────────────────────────────────────────────
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-500 text-sm">Preparing your exam...</p>
+      <div style={centerFlex}>
+        <div style={{ textAlign: 'center' }}>
+          <Spinner />
+          <p style={{ marginTop: 12, color: 'var(--text-2)', fontSize: 14 }}>Preparing your exam…</p>
         </div>
       </div>
     )
@@ -88,12 +57,11 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="max-w-sm text-center">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <p className="text-red-700 font-medium mb-2">Error</p>
-            <p className="text-red-600 text-sm">{error}</p>
-          </div>
+      <div style={{ ...centerFlex, padding: 20 }}>
+        <div className="card" style={{ maxWidth: 400, padding: 28, textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+          <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Something went wrong</p>
+          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>{error}</p>
         </div>
       </div>
     )
@@ -101,10 +69,10 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
 
   if (status === 'submitting') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-600 text-sm">Submitting your answers...</p>
+      <div style={centerFlex}>
+        <div style={{ textAlign: 'center' }}>
+          <Spinner />
+          <p style={{ marginTop: 12, color: 'var(--text-2)', fontSize: 14 }}>Submitting your answers…</p>
         </div>
       </div>
     )
@@ -112,85 +80,133 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
 
   if (!currentQuestion) return null
 
+  const progress = totalQuestions > 0 ? ((currentIndex) / totalQuestions) * 100 : 0
+
+  // ── Exam UI ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header bar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{batch.name}</p>
-            <p className="text-xs text-gray-500">{rollNumber} · {studentName}</p>
-          </div>
-          <div className={`text-2xl font-mono font-bold tabular-nums ${isUrgent ? 'text-red-600' : 'text-gray-900'}`}>
-            {remainingFormatted}
-          </div>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Progress */}
-      <div className="bg-white border-b border-gray-100 px-4 py-2">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-500">Question {currentIndex + 1} of {totalQuestions}</span>
-            <span className="text-xs text-gray-400">{Math.round(((currentIndex) / totalQuestions) * 100)}% complete</span>
+      {/* ── Sticky header ─────────────────────────────── */}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-sm)',
+      }}>
+        {/* Progress bar */}
+        <div style={{ height: 3, background: 'var(--border)' }}>
+          <div style={{
+            height: '100%',
+            width: `${progress}%`,
+            background: 'var(--accent)',
+            transition: 'width .3s ease',
+          }} />
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 20px', maxWidth: 800, margin: '0 auto', width: '100%',
+        }}>
+          {/* Left: batch + progress label */}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{batch.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 1 }}>
+              Question {currentIndex + 1} of {totalQuestions}
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
+
+          {/* Right: timer */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
             <div
-              className="bg-indigo-600 h-1.5 rounded-full transition-all"
-              style={{ width: `${(currentIndex / totalQuestions) * 100}%` }}
-            />
+              className="font-timer"
+              style={{
+                fontSize: 26,
+                fontWeight: 700,
+                color: isUrgent ? 'var(--error)' : 'var(--text-1)',
+                letterSpacing: '-.02em',
+                lineHeight: 1,
+                transition: 'color .3s',
+              }}
+            >
+              {remainingFormatted}
+            </div>
+            {isUrgent && (
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--error)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
+                Time running out
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Question */}
-      <div className="flex-1 px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-            <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">Question {currentIndex + 1}</p>
-            <p className="text-lg text-gray-900 leading-relaxed">{currentQuestion.questionText}</p>
+      {/* ── Question area ──────────────────────────────── */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 48px' }}>
+        <div style={{ width: '100%', maxWidth: 720 }}>
+
+          {/* Question card */}
+          <div className="card" style={{ padding: '28px 28px 24px', marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 12 }}>
+              Question {currentIndex + 1}
+            </div>
+            <p style={{ margin: 0, fontSize: 17, lineHeight: 1.65, color: 'var(--text-1)', fontWeight: 500 }}>
+              {currentQuestion.questionText}
+            </p>
           </div>
 
-          <div className="space-y-3 mb-8">
-            {currentQuestion.options.map(option => (
-              <label
-                key={option.label}
-                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-                  selectedLabel === option.label
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="answer"
-                  value={option.label}
-                  checked={selectedLabel === option.label}
-                  onChange={() => setSelectedLabel(option.label)}
-                  className="mt-0.5 accent-indigo-600"
-                />
-                <div className="flex items-start gap-2">
-                  <span className={`text-sm font-semibold w-5 flex-shrink-0 ${
-                    selectedLabel === option.label ? 'text-indigo-700' : 'text-gray-500'
-                  }`}>
-                    {option.label}.
-                  </span>
-                  <span className={`text-sm leading-relaxed ${
-                    selectedLabel === option.label ? 'text-indigo-900' : 'text-gray-700'
-                  }`}>
-                    {option.text}
-                  </span>
-                </div>
-              </label>
-            ))}
+          {/* Options */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
+            {currentQuestion.options.map(option => {
+              const isSelected = selectedLabel === option.label
+              return (
+                <label
+                  key={option.label}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 14,
+                    padding: '14px 18px',
+                    background: isSelected ? 'var(--accent-lt)' : 'var(--surface)',
+                    border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    transition: 'border-color .12s, background .12s',
+                    boxShadow: isSelected ? `0 0 0 3px var(--accent-md)` : 'var(--shadow-sm)',
+                  }}
+                >
+                  {/* Custom radio */}
+                  <div style={{
+                    flexShrink: 0, width: 20, height: 20, borderRadius: '50%', marginTop: 1,
+                    border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border-md)'}`,
+                    background: isSelected ? 'var(--accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color .12s, background .12s',
+                  }}>
+                    {isSelected && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+                  </div>
+                  <input
+                    type="radio" name="answer" value={option.label}
+                    checked={isSelected}
+                    onChange={() => setSelectedLabel(option.label)}
+                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: isSelected ? 'var(--accent)' : 'var(--text-3)', minWidth: 16 }}>
+                      {option.label}.
+                    </span>
+                    <span style={{ fontSize: 15, color: isSelected ? 'var(--accent)' : 'var(--text-1)', lineHeight: 1.55 }}>
+                      {option.text}
+                    </span>
+                  </div>
+                </label>
+              )
+            })}
           </div>
 
-          <div className="flex justify-end">
+          {/* Action button */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             {isLastQuestion ? (
               <button
-                onClick={handleSubmitClick}
+                onClick={() => selectedLabel && setShowConfirm(true)}
                 disabled={!selectedLabel || submittingAnswer}
-                className="bg-green-600 text-white px-8 py-3 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-40 transition-colors"
+                style={{ ...actionBtn, background: selectedLabel ? 'var(--success)' : '#ccc', cursor: selectedLabel ? 'pointer' : 'not-allowed' }}
               >
                 Submit Exam
               </button>
@@ -198,54 +214,99 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
               <button
                 onClick={handleNext}
                 disabled={!selectedLabel || submittingAnswer}
-                className="bg-indigo-600 text-white px-8 py-3 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                style={{ ...actionBtn, background: selectedLabel && !submittingAnswer ? 'var(--accent)' : '#ccc', cursor: selectedLabel && !submittingAnswer ? 'pointer' : 'not-allowed' }}
               >
-                {submittingAnswer ? 'Saving...' : 'Next →'}
+                {submittingAnswer ? 'Saving…' : <>Next <span style={{ marginLeft: 2 }}>→</span></>}
               </button>
             )}
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Confirm submit dialog */}
+      {/* ── Confirm submit modal ───────────────────────── */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="font-semibold text-gray-900 mb-2">Submit Exam?</h3>
-            <p className="text-sm text-gray-600 mb-1">
-              You are about to submit your exam. This cannot be undone.
-            </p>
-            <p className="text-sm text-gray-500 mb-4">
-              Answered: {currentIndex + 1} of {totalQuestions} questions.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleConfirmSubmit}
-                className="flex-1 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700"
-              >
-                Yes, Submit
-              </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm hover:bg-gray-50"
-              >
-                Go Back
-              </button>
-            </div>
+        <Modal>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>Submit your exam?</h2>
+          <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14 }}>
+            You are about to submit. This cannot be undone.
+          </p>
+          <p style={{ margin: '0 0 24px', color: 'var(--text-3)', fontSize: 13 }}>
+            {currentIndex + 1} of {totalQuestions} questions answered.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={async () => { setShowConfirm(false); setSubmittingAnswer(true); await submitAnswer(selectedLabel, true); setSubmittingAnswer(false) }}
+              style={{ ...actionBtn, flex: 1, background: 'var(--success)' }}
+            >
+              Yes, submit
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              style={{ ...actionBtnSecondary, flex: 1 }}
+            >
+              Go back
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Time up overlay */}
+      {/* ── Time-up overlay ────────────────────────────── */}
       {isExpired && status !== 'submitting' && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 max-w-sm w-full mx-4 text-center">
-            <div className="text-4xl mb-3">⏰</div>
-            <h3 className="font-bold text-gray-900 text-xl mb-2">Time's up!</h3>
-            <p className="text-gray-600 text-sm">Submitting your answers...</p>
-          </div>
-        </div>
+        <Modal>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⏰</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Time's up!</h2>
+          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>Submitting your answers…</p>
+          <div style={{ marginTop: 20 }}><Spinner /></div>
+        </Modal>
       )}
     </div>
   )
+}
+
+/* ── Sub-components ─────────────────────────────────────── */
+function Modal({ children }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      background: 'rgba(15,23,42,.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }}>
+      <div className="card" style={{
+        maxWidth: 380, width: '100%', padding: '32px 28px',
+        textAlign: 'center', boxShadow: 'var(--shadow-xl)',
+      }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function Spinner() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite', display: 'block', margin: '0 auto' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <circle cx="12" cy="12" r="10" fill="none" stroke="var(--accent)" strokeWidth="3" strokeDasharray="31" strokeDashoffset="10" />
+    </svg>
+  )
+}
+
+const centerFlex = {
+  minHeight: '100vh', display: 'flex',
+  alignItems: 'center', justifyContent: 'center',
+}
+const actionBtn = {
+  all: 'unset', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  padding: '11px 26px', borderRadius: 'var(--radius-sm)',
+  color: '#fff', fontSize: 15, fontWeight: 600,
+  letterSpacing: '-.1px',
+}
+const actionBtnSecondary = {
+  all: 'unset', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  padding: '11px 20px', borderRadius: 'var(--radius-sm)',
+  border: '1.5px solid var(--border-md)',
+  color: 'var(--text-2)', fontSize: 15, fontWeight: 500,
 }

@@ -1,13 +1,87 @@
+/* ── Inter font — must precede @import "tailwindcss" ────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
-* {
-  box-sizing: border-box;
+/* ── Design tokens ──────────────────────────────────────── */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
+
+  /* Surface */
+  --bg:        #F8FAFC;
+  --surface:   #FFFFFF;
+  --surface-2: #F1F5F9;
+
+  /* Borders */
+  --border:    #E2E8F0;
+  --border-md: #CBD5E1;
+
+  /* Text */
+  --text-1:    #0F172A;
+  --text-2:    #475569;
+  --text-3:    #94A3B8;
+
+  /* Accent — indigo */
+  --accent:    #4F46E5;
+  --accent-lt: #EEF2FF;
+  --accent-md: #C7D2FE;
+
+  /* Semantic */
+  --success:   #059669;
+  --success-lt:#ECFDF5;
+  --error:     #DC2626;
+  --error-lt:  #FEF2F2;
+  --warn:      #D97706;
+  --warn-lt:   #FFFBEB;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,.15);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
 }
+
+/* ── Base reset ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: #f9fafb;
-  color: #111827;
-  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-1);
+  background: var(--bg);
+}
+
+/* ── Shared utility classes ─────────────────────────────── */
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions on interactive elements */
+button, a, input, label { transition: all .15s ease; }
+
+/* Monospace timer */
+.font-timer {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
 }

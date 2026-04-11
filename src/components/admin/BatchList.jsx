@@ -1,225 +1,225 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { format } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 
-const STATUS_COLORS = {
-  draft:     'bg-gray-100 text-gray-700',
-  scheduled: 'bg-blue-100 text-blue-700',
-  active:    'bg-green-100 text-green-700',
-  completed: 'bg-purple-100 text-purple-700',
+const STATUS_STYLE = {
+  draft:     { bg: 'var(--surface-2)',  color: 'var(--text-3)',   border: 'var(--border)' },
+  scheduled: { bg: '#EFF6FF',           color: '#2563EB',         border: '#BFDBFE' },
+  active:    { bg: 'var(--success-lt)', color: 'var(--success)',  border: '#A7F3D0' },
+  completed: { bg: '#F5F3FF',           color: '#7C3AED',         border: '#DDD6FE' },
 }
 
-const STATUS_TRANSITIONS = {
-  draft:     [{ label: 'Mark Scheduled', next: 'scheduled' }],
-  scheduled: [{ label: 'Start Now', next: 'active' }, { label: 'Revert to Draft', next: 'draft' }],
-  active:    [{ label: 'End Exam', next: 'completed' }],
+const TRANSITIONS = {
+  draft:     [{ label: 'Mark Scheduled', next: 'scheduled', variant: 'default' }],
+  scheduled: [{ label: 'Start Now',       next: 'active',    variant: 'success' },
+              { label: 'Revert to Draft', next: 'draft',     variant: 'danger'  }],
+  active:    [{ label: 'End Exam',        next: 'completed', variant: 'danger'  }],
   completed: [],
 }
 
 export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManageQuestions }) {
-  const [batches, setBatches] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [questionCounts, setQuestionCounts] = useState({})
-  const [submissionCounts, setSubmissionCounts] = useState({})
-  const [confirmAction, setConfirmAction] = useState(null) // { batchId, next, label }
+  const [batches, setBatches]             = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [questionCounts, setQCounts]      = useState({})
+  const [submissionCounts, setSCounts]    = useState({})
+  const [confirmAction, setConfirmAction] = useState(null)
   const [transitioning, setTransitioning] = useState(null)
 
-  useEffect(() => {
-    fetchBatches()
-  }, [])
+  useEffect(() => { fetchBatches() }, [])
 
   async function fetchBatches() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('batches')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (!error && data) {
-      setBatches(data)
-      fetchCounts(data.map(b => b.id))
-    }
+    const { data } = await supabase.from('batches').select('*').order('created_at', { ascending: false })
+    if (data) { setBatches(data); fetchCounts(data.map(b => b.id)) }
     setLoading(false)
   }
 
-  async function fetchCounts(batchIds) {
-    if (batchIds.length === 0) return
-
-    const [qResult, aResult] = await Promise.all([
-      supabase.from('questions').select('batch_id').in('batch_id', batchIds),
-      supabase.from('attempts').select('batch_id').in('batch_id', batchIds).not('submitted_at', 'is', null),
+  async function fetchCounts(ids) {
+    if (!ids.length) return
+    const [qr, ar] = await Promise.all([
+      supabase.from('questions').select('batch_id').in('batch_id', ids),
+      supabase.from('attempts').select('batch_id').in('batch_id', ids).not('submitted_at', 'is', null),
     ])
-
-    const qCounts = {}
-    const aCounts = {}
-    batchIds.forEach(id => { qCounts[id] = 0; aCounts[id] = 0 })
-    qResult.data?.forEach(q => { qCounts[q.batch_id] = (qCounts[q.batch_id] || 0) + 1 })
-    aResult.data?.forEach(a => { aCounts[a.batch_id] = (aCounts[a.batch_id] || 0) + 1 })
-    setQuestionCounts(qCounts)
-    setSubmissionCounts(aCounts)
+    const qc = {}, ac = {}
+    ids.forEach(id => { qc[id] = 0; ac[id] = 0 })
+    qr.data?.forEach(q => { qc[q.batch_id] = (qc[q.batch_id] || 0) + 1 })
+    ar.data?.forEach(a => { ac[a.batch_id] = (ac[a.batch_id] || 0) + 1 })
+    setQCounts(qc); setSCounts(ac)
   }
 
-  async function handleStatusTransition(batchId, nextStatus) {
-    // Validate: cannot mark scheduled if questions_per_student > question count
-    if (nextStatus === 'scheduled') {
-      const batch = batches.find(b => b.id === batchId)
-      const qCount = questionCounts[batchId] || 0
-      if (batch?.questions_per_student && batch.questions_per_student > qCount) {
-        alert(
-          `Cannot schedule: question bank has ${qCount} questions but batch requires ${batch.questions_per_student} per student. ` +
-          `Upload more questions or reduce questions per student.`
-        )
-        setConfirmAction(null)
-        return
-      }
-      if (qCount === 0) {
-        alert('Cannot schedule: no questions uploaded for this batch.')
-        setConfirmAction(null)
-        return
+  async function doTransition(batchId, next) {
+    if (next === 'scheduled') {
+      const b = batches.find(x => x.id === batchId)
+      const qc = questionCounts[batchId] || 0
+      if (qc === 0) { alert('Upload questions before scheduling.'); setConfirmAction(null); return }
+      if (b?.questions_per_student && b.questions_per_student > qc) {
+        alert(`Question bank has ${qc} questions but batch requires ${b.questions_per_student} per student. Upload more or reduce the per-student count.`)
+        setConfirmAction(null); return
       }
     }
-
     setTransitioning(batchId)
-    const { error } = await supabase
-      .from('batches')
-      .update({ status: nextStatus })
-      .eq('id', batchId)
-
-    if (!error) {
-      setBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: nextStatus } : b))
-    }
-    setConfirmAction(null)
-    setTransitioning(null)
-  }
-
-  if (loading) {
-    return <div className="text-gray-500 text-sm py-8 text-center">Loading batches...</div>
+    await supabase.from('batches').update({ status: next }).eq('id', batchId)
+    setBatches(prev => prev.map(b => b.id === batchId ? { ...b, status: next } : b))
+    setConfirmAction(null); setTransitioning(null)
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Batches</h2>
-        <button
-          onClick={onCreateBatch}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          + New Batch
-        </button>
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }}>Batches</h1>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-3)' }}>{batches.length} total</p>
+        </div>
+        <button onClick={onCreateBatch} style={btnPrimary}>+ New Batch</button>
       </div>
 
-      {batches.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-lg mb-2">No batches yet.</p>
-          <p className="text-sm">Create your first batch to get started.</p>
+      {loading && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>Loading…</div>}
+
+      {!loading && batches.length === 0 && (
+        <div className="card" style={{ padding: '60px 32px', textAlign: 'center' }}>
+          <p style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--text-1)' }}>No batches yet</p>
+          <p style={{ margin: '0 0 20px', color: 'var(--text-2)', fontSize: 14 }}>Create your first exam batch to get started.</p>
+          <button onClick={onCreateBatch} style={btnPrimary}>Create first batch</button>
         </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Scheduled Start (IST)</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Duration</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Questions</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Submissions</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
+      )}
+
+      {!loading && batches.length > 0 && (
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                {['Name', 'Scheduled (IST)', 'Duration', 'Status', 'Questions', 'Submissions', 'Actions'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap', fontSize: 12, letterSpacing: '.02em' }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {batches.map(batch => (
-                <tr key={batch.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{batch.name}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'dd MMM yyyy, hh:mm a')}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{batch.duration_minutes} min</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[batch.status]}`}>
-                      {batch.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {questionCounts[batch.id] ?? 0}
-                    {batch.questions_per_student && (
-                      <span className="text-gray-400 ml-1">/ {batch.questions_per_student} per student</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{submissionCounts[batch.id] ?? 0}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => onSelectBatch(batch)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onManageQuestions(batch)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 underline"
-                      >
-                        Questions
-                      </button>
-                      {(batch.status === 'active' || batch.status === 'completed') && (
-                        <button
-                          onClick={() => onViewResults(batch)}
-                          className="text-xs text-indigo-600 hover:text-indigo-800 underline"
-                        >
-                          Results
-                        </button>
+            <tbody>
+              {batches.map((batch, i) => {
+                const ss = STATUS_STYLE[batch.status] || STATUS_STYLE.draft
+                const transitions = TRANSITIONS[batch.status] || []
+                return (
+                  <tr key={batch.id} style={{ borderBottom: i < batches.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-1)' }}>{batch.name}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                      {formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'dd MMM yy, hh:mm a')}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{batch.duration_minutes} min</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '3px 9px', borderRadius: 99,
+                        fontSize: 11, fontWeight: 600,
+                        background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`,
+                        textTransform: 'capitalize',
+                      }}>{batch.status}</span>
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{questionCounts[batch.id] ?? 0}</span>
+                      {batch.questions_per_student && (
+                        <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>/ {batch.questions_per_student} each</span>
                       )}
-                      {STATUS_TRANSITIONS[batch.status]?.map(t => (
-                        <button
-                          key={t.next}
-                          onClick={() => setConfirmAction({ batchId: batch.id, ...t })}
-                          disabled={transitioning === batch.id}
-                          className="text-xs bg-white border border-gray-300 text-gray-700 px-2 py-0.5 rounded hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{submissionCounts[batch.id] ?? 0}</span>
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                        <ActionLink onClick={() => onSelectBatch(batch)}>Edit</ActionLink>
+                        <ActionLink onClick={() => onManageQuestions(batch)}>Questions</ActionLink>
+                        {(batch.status === 'active' || batch.status === 'completed') && (
+                          <ActionLink onClick={() => onViewResults(batch)}>Results</ActionLink>
+                        )}
+                        {transitions.map(t => (
+                          <button
+                            key={t.next}
+                            onClick={() => setConfirmAction({ batchId: batch.id, ...t })}
+                            disabled={transitioning === batch.id}
+                            style={transitionBtn(t.variant)}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Confirm dialog */}
+      {/* Confirm modal */}
       {confirmAction && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-            <h3 className="font-semibold text-gray-900 mb-2">Confirm Action</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Are you sure you want to <strong>{confirmAction.label}</strong> this batch?
-              {confirmAction.next === 'active' && (
-                <span className="block mt-1 text-amber-600">This will immediately allow students to start the exam.</span>
-              )}
-              {confirmAction.next === 'completed' && (
-                <span className="block mt-1 text-red-600">This will end the exam for all students immediately.</span>
-              )}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleStatusTransition(confirmAction.batchId, confirmAction.next)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-indigo-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setConfirmAction(null)}
-                className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
+        <div style={overlayStyle}>
+          <div className="card" style={{ maxWidth: 380, width: '100%', padding: '28px 24px', boxShadow: 'var(--shadow-xl)' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 17, fontWeight: 700 }}>Confirm: {confirmAction.label}</h3>
+            {confirmAction.next === 'active' && (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--warn)', background: 'var(--warn-lt)', padding: '8px 12px', borderRadius: 6 }}>
+                This will immediately allow students to begin the exam.
+              </p>
+            )}
+            {confirmAction.next === 'completed' && (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--error)', background: 'var(--error-lt)', padding: '8px 12px', borderRadius: 6 }}>
+                This will end the exam for all students immediately.
+              </p>
+            )}
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--text-2)' }}>Are you sure you want to continue?</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => doTransition(confirmAction.batchId, confirmAction.next)} style={btnPrimary}>Confirm</button>
+              <button onClick={() => setConfirmAction(null)} style={btnSecondary}>Cancel</button>
             </div>
           </div>
         </div>
       )}
     </div>
   )
+}
+
+function ActionLink({ onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function transitionBtn(variant) {
+  const colors = {
+    default: { bg: 'var(--surface)', color: 'var(--text-2)', border: 'var(--border-md)' },
+    success: { bg: 'var(--success-lt)', color: 'var(--success)', border: '#A7F3D0' },
+    danger:  { bg: 'var(--error-lt)', color: 'var(--error)', border: '#FECACA' },
+  }
+  const c = colors[variant] || colors.default
+  return {
+    all: 'unset', cursor: 'pointer',
+    fontSize: 11, fontWeight: 600,
+    padding: '3px 9px', borderRadius: 6,
+    background: c.bg, color: c.color,
+    border: `1px solid ${c.border}`,
+    whiteSpace: 'nowrap',
+  }
+}
+
+const btnPrimary = {
+  all: 'unset', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center',
+  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
+  background: 'var(--accent)', color: '#fff',
+  fontSize: 13, fontWeight: 600,
+}
+const btnSecondary = {
+  all: 'unset', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center',
+  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
+  border: '1px solid var(--border-md)', color: 'var(--text-2)',
+  fontSize: 13, fontWeight: 500,
+}
+const overlayStyle = {
+  position: 'fixed', inset: 0, zIndex: 50,
+  background: 'rgba(15,23,42,.5)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
 }

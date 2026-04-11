@@ -3,214 +3,169 @@ import { supabase } from '../../lib/supabase'
 import { parseQuestionsCsv } from '../../lib/csv'
 
 export function QuestionUpload({ batch, onBack }) {
-  const [file, setFile] = useState(null)
-  const [preview, setPreview] = useState(null)
-  const [parseErrors, setParseErrors] = useState([])
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState(null)
+  const [preview, setPreview]           = useState(null)
+  const [parseErrors, setParseErrors]   = useState([])
+  const [uploading, setUploading]       = useState(false)
+  const [uploadError, setUploadError]   = useState(null)
   const [existingCount, setExistingCount] = useState(0)
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess]           = useState(false)
 
-  useEffect(() => {
-    fetchExistingCount()
-  }, [batch.id])
+  useEffect(() => { fetchCount() }, [batch.id])
 
-  async function fetchExistingCount() {
-    const { count } = await supabase
-      .from('questions')
-      .select('*', { count: 'exact', head: true })
-      .eq('batch_id', batch.id)
+  async function fetchCount() {
+    const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id)
     setExistingCount(count ?? 0)
   }
 
-  async function handleFileChange(e) {
-    const selected = e.target.files[0]
-    if (!selected) return
-    setFile(selected)
-    setPreview(null)
-    setParseErrors([])
-    setSuccess(false)
-
-    const { questions, errors } = await parseQuestionsCsv(selected)
-    if (errors.length > 0) {
-      setParseErrors(errors)
-      setPreview(null)
-    } else {
-      setPreview(questions)
-    }
+  async function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setPreview(null); setParseErrors([]); setSuccess(false); setUploadError(null)
+    const { questions, errors } = await parseQuestionsCsv(file)
+    if (errors.length) setParseErrors(errors)
+    else setPreview(questions)
   }
 
   async function handleUpload() {
-    if (!preview || preview.length === 0) return
-    setUploading(true)
-    setUploadError(null)
-
+    if (!preview?.length) return
+    setUploading(true); setUploadError(null)
     try {
-      // Delete existing questions for this batch first
-      const { error: deleteError } = await supabase
-        .from('questions')
-        .delete()
-        .eq('batch_id', batch.id)
-      if (deleteError) throw deleteError
-
-      // Bulk insert new questions
-      const rows = preview.map((q, i) => ({
-        ...q,
-        batch_id: batch.id,
-        sort_order: i + 1,
-      }))
-
-      // Insert in chunks of 500 to avoid payload limits
-      const chunkSize = 500
-      for (let i = 0; i < rows.length; i += chunkSize) {
-        const chunk = rows.slice(i, i + chunkSize)
-        const { error } = await supabase.from('questions').insert(chunk)
+      await supabase.from('questions').delete().eq('batch_id', batch.id)
+      const rows = preview.map((q, i) => ({ ...q, batch_id: batch.id, sort_order: i + 1 }))
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await supabase.from('questions').insert(rows.slice(i, i + 500))
         if (error) throw error
       }
-
-      setSuccess(true)
-      setExistingCount(preview.length)
-      setPreview(null)
-      setFile(null)
-    } catch (err) {
-      setUploadError(err.message)
-    } finally {
-      setUploading(false)
-    }
+      setSuccess(true); setExistingCount(preview.length); setPreview(null)
+    } catch (err) { setUploadError(err.message) }
+    finally { setUploading(false) }
   }
 
+  const warnBank = batch.questions_per_student && existingCount > 0 && batch.questions_per_student > existingCount
+  const warnPreview = preview && batch.questions_per_student && batch.questions_per_student > preview.length
+
   return (
-    <div className="max-w-4xl">
-      <button
-        onClick={onBack}
-        className="text-sm text-indigo-600 hover:text-indigo-800 mb-4 flex items-center gap-1"
-      >
-        ← Back to batches
-      </button>
+    <div style={{ maxWidth: 860 }}>
+      {/* Back */}
+      <button onClick={onBack} style={backBtn}>← Back to batches</button>
 
-      <h2 className="text-xl font-semibold text-gray-900 mb-1">{batch.name}</h2>
-      <p className="text-sm text-gray-500 mb-6">
-        Currently uploaded: <strong>{existingCount}</strong> questions
-        {batch.questions_per_student && (
-          <span className="ml-2 text-indigo-600 font-medium">
-            → {batch.questions_per_student} per student
+      {/* Page header */}
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>{batch.name}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+            Question bank: <strong style={{ color: 'var(--text-1)' }}>{existingCount}</strong> questions uploaded
           </span>
-        )}
-      </p>
-
-      {/* Validation warning */}
-      {batch.questions_per_student && existingCount > 0 && batch.questions_per_student > existingCount && (
-        <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded text-sm">
-          Warning: question bank has {existingCount} questions but batch requires {batch.questions_per_student} per student.
-          Upload more questions or reduce questions per student before scheduling.
+          {batch.questions_per_student && (
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--accent-lt)', color: 'var(--accent)', border: '1px solid var(--accent-md)' }}>
+              {batch.questions_per_student} per student
+            </span>
+          )}
         </div>
-      )}
-
-      {success && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm">
-          Questions uploaded successfully! {existingCount} questions are now in the bank.
-        </div>
-      )}
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h3 className="font-medium text-gray-900 mb-3">Upload CSV</h3>
-        <p className="text-xs text-gray-500 mb-3">
-          Required columns: <code className="bg-gray-100 px-1 rounded">question, option_a, option_b, option_c, option_d, correct</code>
-          <br />Correct column accepts: A, B, C, D (case-insensitive). UTF-8 encoding. Devanagari supported.
-        </p>
-
-        <input
-          type="file"
-          accept=".csv"
-          onChange={handleFileChange}
-          className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-        />
       </div>
 
+      {/* Validation warning */}
+      {warnBank && <Alert type="warn" text={`Question bank has ${existingCount} questions but requires ${batch.questions_per_student} per student. Upload more questions or lower the per-student count before scheduling.`} />}
+
+      {/* Success */}
+      {success && <Alert type="success" text={`Upload complete — ${existingCount} questions are now in the bank.`} />}
+
+      {/* Upload card */}
+      <div className="card" style={{ padding: '24px', marginBottom: 20 }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 600 }}>Upload CSV file</h3>
+        <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+          Required columns: <code style={codeStyle}>question, option_a, option_b, option_c, option_d, correct</code>
+          {' · '}Correct column: A / B / C / D (case-insensitive). UTF-8 with Devanagari support.
+        </p>
+        <input type="file" accept=".csv" onChange={handleFile}
+          style={{ fontSize: 13, color: 'var(--text-2)', cursor: 'pointer' }} />
+      </div>
+
+      {/* Parse errors */}
       {parseErrors.length > 0 && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-red-700 mb-2">CSV validation errors:</p>
-          <ul className="text-sm text-red-600 space-y-1 list-disc list-inside">
-            {parseErrors.map((err, i) => <li key={i}>{err}</li>)}
+        <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 8, padding: '16px', marginBottom: 20 }}>
+          <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--error)', fontSize: 13 }}>CSV errors — fix these and re-upload:</p>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {parseErrors.map((e, i) => <li key={i} style={{ fontSize: 12, color: 'var(--error)', marginBottom: 2 }}>{e}</li>)}
           </ul>
         </div>
       )}
 
+      {/* Preview */}
       {preview && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-gray-900">
-              Preview — {preview.length} questions parsed
-            </h3>
-            {batch.questions_per_student && (
-              <span className="text-sm text-indigo-600">
-                Bank: {preview.length} questions → {batch.questions_per_student} per student
-                {batch.questions_per_student > preview.length && (
-                  <span className="text-amber-600 ml-1">
-                    (Warning: per-student count exceeds bank size)
-                  </span>
-                )}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{preview.length} questions parsed</span>
+            {warnPreview && (
+              <span style={{ fontSize: 12, color: 'var(--warn)', background: 'var(--warn-lt)', padding: '3px 8px', borderRadius: 6, border: '1px solid #FDE68A' }}>
+                Warning: per-student count ({batch.questions_per_student}) exceeds bank size ({preview.length})
               </span>
             )}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg overflow-auto max-h-80">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-8">#</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600">Question</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600">A</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600">B</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600">C</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600">D</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600">Correct</th>
+          <div className="card" style={{ overflow: 'auto', maxHeight: 300, marginBottom: 16 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0 }}>
+                  {['#', 'Question', 'A', 'B', 'C', 'D', '✓'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {preview.map((q, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-gray-400">{i + 1}</td>
-                    <td className="px-3 py-2 text-gray-900 max-w-xs truncate">{q.question_text}</td>
-                    <td className="px-3 py-2 text-gray-600 max-w-20 truncate">{q.option_a}</td>
-                    <td className="px-3 py-2 text-gray-600 max-w-20 truncate">{q.option_b}</td>
-                    <td className="px-3 py-2 text-gray-600 max-w-20 truncate">{q.option_c}</td>
-                    <td className="px-3 py-2 text-gray-600 max-w-20 truncate">{q.option_d}</td>
-                    <td className="px-3 py-2 font-medium text-green-700">{q.correct_answer}</td>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '7px 10px', color: 'var(--text-3)' }}>{i + 1}</td>
+                    <td style={{ padding: '7px 10px', color: 'var(--text-1)', maxWidth: 220 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.question_text}</div>
+                    </td>
+                    {[q.option_a, q.option_b, q.option_c, q.option_d].map((opt, oi) => (
+                      <td key={oi} style={{ padding: '7px 10px', color: 'var(--text-2)', maxWidth: 100 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</div>
+                      </td>
+                    ))}
+                    <td style={{ padding: '7px 10px', fontWeight: 700, color: 'var(--success)' }}>{q.correct_answer}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {uploadError && (
-            <div className="mt-3 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
-              {uploadError}
-            </div>
-          )}
+          {uploadError && <Alert type="error" text={uploadError} />}
 
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-            >
-              {uploading ? 'Uploading...' : `Confirm Upload (${preview.length} questions)`}
-            </button>
-            <button
-              onClick={() => { setPreview(null); setFile(null) }}
-              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
           {existingCount > 0 && (
-            <p className="text-xs text-amber-600 mt-2">
-              Note: uploading will replace all {existingCount} existing questions for this batch.
+            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--warn)' }}>
+              This will replace all {existingCount} existing questions for this batch.
             </p>
           )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={handleUpload} disabled={uploading} style={{ ...btnPrimary, opacity: uploading ? .6 : 1 }}>
+              {uploading ? 'Uploading…' : `Confirm Upload (${preview.length} questions)`}
+            </button>
+            <button onClick={() => setPreview(null)} style={btnSecondary}>Cancel</button>
+          </div>
         </div>
       )}
     </div>
   )
 }
+
+function Alert({ type, text }) {
+  const styles = {
+    success: { bg: 'var(--success-lt)', border: '#A7F3D0', color: 'var(--success)' },
+    warn:    { bg: 'var(--warn-lt)', border: '#FDE68A', color: 'var(--warn)' },
+    error:   { bg: 'var(--error-lt)', border: '#FECACA', color: 'var(--error)' },
+  }
+  const s = styles[type]
+  return (
+    <div style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 8, padding: '10px 14px', color: s.color, fontSize: 13, marginBottom: 16 }}>
+      {text}
+    </div>
+  )
+}
+
+const backBtn = { all: 'unset', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 20 }
+const codeStyle = { fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--surface-2)', padding: '1px 5px', borderRadius: 4, border: '1px solid var(--border)' }
+const btnPrimary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '9px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600 }
+const btnSecondary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '9px 16px', borderRadius: 8, border: '1px solid var(--border-md)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }
