@@ -19,13 +19,7 @@ export function AdminLayout({ user, children }) {
       }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, letterSpacing: '-.2px' }}>BV</span>
-          </div>
+          <img src="/logo.png" alt="BharatVidya" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
           <div>
             <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-1)' }}>BharatVidya Exams</span>
             <span style={{

@@ -36,14 +36,7 @@ export function BatchSelect({ onSelectBatch }) {
         alignItems: 'center',
         gap: '10px',
       }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: 'var(--accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>BV</span>
-        </div>
+        <img src="/logo.png" alt="BharatVidya" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
         <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 15 }}>BharatVidya Exams</span>
       </header>
 

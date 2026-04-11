@@ -67,9 +67,7 @@ export function AdminPage() {
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div className="card" style={{ width: '100%', maxWidth: 380, padding: '40px 36px', textAlign: 'center' }}>
           {/* Brand */}
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, letterSpacing: '-.2px' }}>BV</span>
-          </div>
+          <img src="/logo.png" alt="BharatVidya" style={{ width: 72, height: 72, borderRadius: '50%', display: 'block', margin: '0 auto 16px' }} />
           <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>Admin Portal</h1>
           <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>BharatVidya Exams · Restricted access</p>
 
