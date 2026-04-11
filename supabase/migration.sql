@@ -326,7 +326,33 @@ AS $$
 $$;
 
 -- ============================================================
--- Done. Grant execute on RPCs to anon.
+-- Table-level grants for anon (students, unauthenticated)
+-- IMPORTANT: RLS policies alone are not enough — PostgreSQL also
+-- requires explicit DML grants. Without these, RLS returns a
+-- misleading "violates row-level security policy" error instead
+-- of "permission denied".
+-- ============================================================
+
+-- Students read batches (to browse exam list + RLS subquery eval)
+GRANT SELECT ON public.batches   TO anon;
+
+-- Students read questions (only active batches, enforced by RLS)
+GRANT SELECT ON public.questions TO anon;
+
+-- Students create an attempt and update it on submission
+GRANT INSERT, UPDATE ON public.attempts  TO anon;
+
+-- Students insert one response per answered question
+GRANT INSERT          ON public.responses TO anon;
+
+-- Admin (authenticated) gets full access — RLS further restricts to is_admin()
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.batches   TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.questions TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.attempts  TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.responses TO authenticated;
+
+-- ============================================================
+-- Grant execute on RPCs to anon.
 -- ============================================================
 GRANT EXECUTE ON FUNCTION public.get_my_attempt(uuid, text) TO anon;
 GRANT EXECUTE ON FUNCTION public.get_my_responses(uuid) TO anon;
