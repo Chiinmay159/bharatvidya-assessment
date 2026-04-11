@@ -224,3 +224,13 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.replace_questions(uuid, jsonb) TO authenticated;
+
+-- ============================================================
+-- Admin DELETE on attempts (missing from original migration).
+-- Responses are automatically removed via ON DELETE CASCADE.
+-- ============================================================
+DROP POLICY IF EXISTS "attempts_delete_admin" ON public.attempts;
+CREATE POLICY "attempts_delete_admin"
+  ON public.attempts FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
