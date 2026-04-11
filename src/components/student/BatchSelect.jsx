@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
@@ -7,13 +7,7 @@ export function BatchSelect({ onSelectBatch }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    fetchBatches()
-    const interval = setInterval(fetchBatches, 30_000)
-    return () => clearInterval(interval)
-  }, [])
-
-  async function fetchBatches() {
+  const fetchBatches = useCallback(async () => {
     const { data, error } = await supabase
       .from('batches')
       .select('id, name, scheduled_start, duration_minutes, status, questions_per_student')
@@ -23,7 +17,13 @@ export function BatchSelect({ onSelectBatch }) {
     if (error) setError('Failed to load exam batches. Please refresh.')
     else { setBatches(data || []); setError(null) }
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchBatches()
+    const interval = setInterval(fetchBatches, 30_000)
+    return () => clearInterval(interval)
+  }, [fetchBatches])
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>

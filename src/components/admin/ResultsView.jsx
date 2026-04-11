@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { generateCsv, downloadCsv } from '../../lib/csv'
 import { formatInTimeZone } from 'date-fns-tz'
@@ -11,9 +11,7 @@ export function ResultsView({ batch, onBack }) {
   const [sortKey,   setSortKey]   = useState('score')
   const [sortDir,   setSortDir]   = useState('desc')
 
-  useEffect(() => { fetchAll() }, [batch.id])
-
-  async function fetchAll() {
+  const fetchAll = useCallback(async () => {
     setLoading(true)
     const [ar, qr] = await Promise.all([
       supabase.from('attempts').select('*').eq('batch_id', batch.id).not('submitted_at', 'is', null).order('submitted_at', { ascending: false }),
@@ -26,7 +24,9 @@ export function ResultsView({ batch, onBack }) {
       setResponses(resp || [])
     }
     setLoading(false)
-  }
+  }, [batch.id])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')

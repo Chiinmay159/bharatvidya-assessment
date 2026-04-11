@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
@@ -25,16 +25,7 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
   const [confirmAction, setConfirmAction] = useState(null)
   const [transitioning, setTransitioning] = useState(null)
 
-  useEffect(() => { fetchBatches() }, [])
-
-  async function fetchBatches() {
-    setLoading(true)
-    const { data } = await supabase.from('batches').select('*').order('created_at', { ascending: false })
-    if (data) { setBatches(data); fetchCounts(data.map(b => b.id)) }
-    setLoading(false)
-  }
-
-  async function fetchCounts(ids) {
+  const fetchCounts = useCallback(async (ids) => {
     if (!ids.length) return
     const [qr, ar] = await Promise.all([
       supabase.from('questions').select('batch_id').in('batch_id', ids),
@@ -45,7 +36,16 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
     qr.data?.forEach(q => { qc[q.batch_id] = (qc[q.batch_id] || 0) + 1 })
     ar.data?.forEach(a => { ac[a.batch_id] = (ac[a.batch_id] || 0) + 1 })
     setQCounts(qc); setSCounts(ac)
-  }
+  }, [])
+
+  const fetchBatches = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase.from('batches').select('*').order('created_at', { ascending: false })
+    if (data) { setBatches(data); fetchCounts(data.map(b => b.id)) }
+    setLoading(false)
+  }, [fetchCounts])
+
+  useEffect(() => { fetchBatches() }, [fetchBatches])
 
   async function doTransition(batchId, next) {
     if (next === 'scheduled') {

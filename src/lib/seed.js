@@ -65,11 +65,14 @@ function seededShuffle(array, rng) {
  * originalLabel (pre-shuffle label), NOT the display label.
  * This ensures consistent scoring and CSV export.
  *
- * @param {Object} question — raw question from Supabase
+ * NOTE: correctLabel is intentionally NOT returned. Correct-answer
+ * evaluation happens server-side via the set_is_correct trigger
+ * and the submit_exam RPC. The client never learns the correct answer.
+ *
+ * @param {Object} question — raw question from get_exam_questions RPC
  * @param {() => number} rng — seeded PRNG (state advances)
- * @returns {{ questionId, questionText, options, correctLabel }}
+ * @returns {{ questionId, questionText, options }}
  *   options: [{ label, text, originalLabel }]  (label = display A/B/C/D)
- *   correctLabel: the display label of the correct option
  */
 function shuffleOptions(question, rng) {
   const originalOptions = [
@@ -85,12 +88,10 @@ function shuffleOptions(question, rng) {
     text: opt.text,
     originalLabel: opt.originalLabel,
   }))
-  const correctLabel = options.find(o => o.originalLabel === question.correct_answer).label
   return {
     questionId: question.id,
     questionText: question.question_text,
     options,
-    correctLabel,
   }
 }
 

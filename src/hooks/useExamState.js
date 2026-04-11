@@ -5,12 +5,12 @@ import { selectAndShuffleQuestions } from '../lib/seed'
 /**
  * useExamState — manages the full student exam session lifecycle.
  *
- * Responsibilities:
- * - Creates or recovers an attempt (refresh-safe via get_my_attempt RPC)
- * - Fetches and randomizes questions
- * - Tracks current question index and already-answered questions
- * - Submits individual responses (per-click, not batched)
- * - Handles final submission (score computation + attempt update)
+ * Security hardening:
+ * - Questions are fetched via get_exam_questions RPC (correct_answer stripped server-side)
+ * - is_correct is set by a BEFORE INSERT trigger on responses (not client-computed)
+ * - Submission calls submit_exam RPC (server-side scoring, not client-computed)
+ * - get_my_attempt passes student name for ownership verification (P1-B)
+ * - No stale-closure risk: finalizeSubmission no longer reads answeredMap
  */
 export function useExamState({ batch, rollNumber, studentName }) {
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'submitting' | 'submitted' | 'error'
@@ -18,7 +18,7 @@ export function useExamState({ batch, rollNumber, studentName }) {
   const [questions, setQuestions] = useState([]) // shuffled ShuffledQuestion[]
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answeredMap, setAnsweredMap] = useState({}) // { [questionId]: originalLabel }
-  const [result, setResult] = useState(null) // { score, total }
+  const [result, setResult] = useState(null) // { score, total, percentage }
   const [error, setError] = useState(null)
 
   const batchId = batch?.id
@@ -33,9 +33,11 @@ export function useExamState({ batch, rollNumber, studentName }) {
       setStatus('loading')
 
       // 1. Check for existing attempt (refresh recovery)
+      // P1-B: pass student name so the RPC verifies ownership
       const { data: existing } = await supabase.rpc('get_my_attempt', {
-        p_batch_id: batchId,
-        p_roll_number: rollNumber,
+        p_batch_id:     batchId,
+        p_roll_number:  rollNumber,
+        p_student_name: studentName,
       })
 
       let currentAttemptId
@@ -43,7 +45,7 @@ export function useExamState({ batch, rollNumber, studentName }) {
       if (existing && existing.length > 0) {
         const attempt = existing[0]
         if (attempt.submitted_at) {
-          // Already submitted — go to result
+          // Already submitted — go to result screen
           setResult({ alreadySubmitted: true })
           setStatus('submitted')
           return
@@ -67,15 +69,12 @@ export function useExamState({ batch, rollNumber, studentName }) {
 
       setAttemptId(currentAttemptId)
 
-      // 2. Fetch all questions for this batch (sorted by sort_order)
+      // 2. Fetch questions via RPC — correct_answer is stripped server-side (P0-A)
       const { data: rawQuestions, error: qError } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('batch_id', batchId)
-        .order('sort_order', { ascending: true })
+        .rpc('get_exam_questions', { p_batch_id: batchId })
       if (qError) throw qError
 
-      // 3. Randomize question selection and option order
+      // 3. Randomize question selection and option order (deterministic per student)
       const shuffled = selectAndShuffleQuestions(
         rawQuestions,
         rollNumber,
@@ -84,7 +83,7 @@ export function useExamState({ batch, rollNumber, studentName }) {
       )
       setQuestions(shuffled)
 
-      // 4. Recover previously answered questions
+      // 4. Recover previously answered questions on refresh
       if (existing && existing.length > 0) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id: currentAttemptId,
@@ -110,7 +109,7 @@ export function useExamState({ batch, rollNumber, studentName }) {
 
   /**
    * Submit a single response and advance to next question.
-   * @param {string} selectedLabel — the DISPLAY label (A/B/C/D as shown)
+   * @param {string} selectedLabel — the DISPLAY label (A/B/C/D as shown on screen)
    * @param {boolean} isFinal — true on the last question
    */
   const submitAnswer = useCallback(async (selectedLabel, isFinal = false) => {
@@ -120,12 +119,11 @@ export function useExamState({ batch, rollNumber, studentName }) {
     // Map display label back to original label for storage
     const selectedOption = question.options.find(o => o.label === selectedLabel)
     const originalLabel = selectedOption.originalLabel
-    const isCorrect = originalLabel === question.options.find(o => o.label === question.correctLabel).originalLabel
 
-    // Optimistically advance UI
+    // Optimistically update UI
     setAnsweredMap(prev => ({ ...prev, [question.questionId]: originalLabel }))
 
-    // Retry helper
+    // Retry helper for network resilience
     async function insertWithRetry(payload, retries = 3) {
       for (let attempt = 0; attempt < retries; attempt++) {
         const { error } = await supabase.from('responses').insert(payload)
@@ -136,15 +134,17 @@ export function useExamState({ batch, rollNumber, studentName }) {
     }
 
     try {
+      // P0-B: is_correct is computed by the set_is_correct BEFORE INSERT trigger.
+      // We send false as a placeholder — the trigger overwrites it.
       await insertWithRetry({
-        attempt_id: attemptId,
-        question_id: question.questionId,
+        attempt_id:      attemptId,
+        question_id:     question.questionId,
         selected_answer: originalLabel,
-        is_correct: isCorrect,
+        is_correct:      false,   // overwritten server-side by trigger
       })
     } catch (err) {
       console.error('Failed to save response:', err)
-      // Continue anyway — auto-submit will handle final score
+      // Non-fatal: continue exam. submit_exam will count what's in DB.
     }
 
     if (isFinal) {
@@ -155,34 +155,26 @@ export function useExamState({ batch, rollNumber, studentName }) {
   }, [questions, currentIndex, attemptId])
 
   /**
-   * Auto-submit on timer expiry — submits whatever has been answered.
+   * Auto-submit on timer expiry — submits whatever has been answered so far.
    */
   const autoSubmit = useCallback(async () => {
     if (status === 'submitting' || status === 'submitted') return
     await finalizeSubmission()
-  }, [status, attemptId, answeredMap, questions])
+  }, [status, attemptId])
 
+  /**
+   * Finalize submission via submit_exam RPC.
+   * P0-B: scoring is computed server-side from the responses table.
+   * P2-A: no longer reads answeredMap, so no stale-closure risk.
+   */
   async function finalizeSubmission() {
     if (!attemptId) return
     setStatus('submitting')
     try {
-      // Compute score from answered map
-      let score = 0
-      let total = questions.length
-      questions.forEach(q => {
-        const answered = answeredMap[q.questionId]
-        if (answered) {
-          const opt = q.options.find(o => o.originalLabel === answered)
-          if (opt && opt.label === q.correctLabel) score++
-        }
-      })
-
-      const { error } = await supabase
-        .from('attempts')
-        .update({ submitted_at: new Date().toISOString(), score, total_questions: total })
-        .eq('id', attemptId)
+      const { data, error } = await supabase.rpc('submit_exam', { p_attempt_id: attemptId })
       if (error) throw error
 
+      const { score, total_questions: total } = data[0]
       setResult({ score, total, percentage: Math.round((score / total) * 100) })
       setStatus('submitted')
     } catch (err) {

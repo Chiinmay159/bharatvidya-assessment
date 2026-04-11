@@ -30,12 +30,20 @@ export function QuestionUpload({ batch, onBack }) {
     if (!preview?.length) return
     setUploading(true); setUploadError(null)
     try {
-      await supabase.from('questions').delete().eq('batch_id', batch.id)
-      const rows = preview.map((q, i) => ({ ...q, batch_id: batch.id, sort_order: i + 1 }))
-      for (let i = 0; i < rows.length; i += 500) {
-        const { error } = await supabase.from('questions').insert(rows.slice(i, i + 500))
-        if (error) throw error
-      }
+      // P2-B: atomic replace via RPC — DELETE + INSERT in one transaction
+      const rows = preview.map(q => ({
+        question_text:  q.question_text,
+        option_a:       q.option_a,
+        option_b:       q.option_b,
+        option_c:       q.option_c,
+        option_d:       q.option_d,
+        correct_answer: q.correct_answer,
+      }))
+      const { error } = await supabase.rpc('replace_questions', {
+        p_batch_id:  batch.id,
+        p_questions: rows,
+      })
+      if (error) throw error
       setSuccess(true); setExistingCount(preview.length); setPreview(null)
     } catch (err) { setUploadError(err.message) }
     finally { setUploading(false) }
