@@ -18,7 +18,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
     )
   }
 
-  const pct = typeof percentage === 'number' ? percentage : 0
+  const pct = Number.isFinite(percentage) ? percentage : 0
   const passed = pct >= 60
   const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : 'F'
 

@@ -139,10 +139,12 @@ DROP POLICY IF EXISTS "attempts_update_anon" ON public.attempts;
 REVOKE UPDATE ON public.attempts FROM anon;
 
 -- ============================================================
--- P1-B: Harden get_my_attempt — optional student_name verification.
--- When p_student_name is provided, the row is only returned if the
+-- P1-B: Drop old 2-param overload first (avoids PostgREST ambiguity),
+-- then create hardened 3-param version with optional student_name.
+-- When p_student_name is provided the row is only returned if the
 -- name matches (case-insensitive), preventing roll-number enumeration.
 -- ============================================================
+DROP FUNCTION IF EXISTS public.get_my_attempt(uuid, text);
 CREATE OR REPLACE FUNCTION public.get_my_attempt(
   p_batch_id     uuid,
   p_roll_number  text,

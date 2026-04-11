@@ -78,7 +78,21 @@ export function ExamScreen({ batch, rollNumber, studentName, onComplete }) {
     )
   }
 
-  if (!currentQuestion) return null
+  // Should never reach here if useExamState guards are working,
+  // but prevents a blank screen if questions are unexpectedly empty.
+  if (!currentQuestion) {
+    return (
+      <div style={centerFlex}>
+        <div className="card" style={{ maxWidth: 400, padding: 28, textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+          <p style={{ margin: '0 0 6px', fontWeight: 600 }}>No questions available</p>
+          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>
+            This exam has no questions yet. Please contact your invigilator.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const progress = totalQuestions > 0 ? ((currentIndex) / totalQuestions) * 100 : 0
 

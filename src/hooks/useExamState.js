@@ -32,6 +32,15 @@ export function useExamState({ batch, rollNumber, studentName }) {
     try {
       setStatus('loading')
 
+      // Guard: block entry if the exam window has already closed
+      const examEndMs = new Date(batch.scheduled_start).getTime()
+        + batch.duration_minutes * 60 * 1000
+      if (Date.now() > examEndMs) {
+        throw new Error(
+          'The exam time window has already closed. Please contact your invigilator.'
+        )
+      }
+
       // 1. Check for existing attempt (refresh recovery)
       // P1-B: pass student name so the RPC verifies ownership
       const { data: existing } = await supabase.rpc('get_my_attempt', {
@@ -74,7 +83,14 @@ export function useExamState({ batch, rollNumber, studentName }) {
         .rpc('get_exam_questions', { p_batch_id: batchId })
       if (qError) throw qError
 
-      // 3. Randomize question selection and option order (deterministic per student)
+      // 3. Guard: questions must exist before proceeding
+      if (!rawQuestions || rawQuestions.length === 0) {
+        throw new Error(
+          'No questions found for this exam. Please contact your invigilator.'
+        )
+      }
+
+      // 4. Randomize question selection and option order (deterministic per student)
       const shuffled = selectAndShuffleQuestions(
         rawQuestions,
         rollNumber,
@@ -83,7 +99,7 @@ export function useExamState({ batch, rollNumber, studentName }) {
       )
       setQuestions(shuffled)
 
-      // 4. Recover previously answered questions on refresh
+      // 5. Recover previously answered questions on refresh
       if (existing && existing.length > 0) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id: currentAttemptId,
@@ -175,7 +191,8 @@ export function useExamState({ batch, rollNumber, studentName }) {
       if (error) throw error
 
       const { score, total_questions: total } = data[0]
-      setResult({ score, total, percentage: Math.round((score / total) * 100) })
+      const pct = total > 0 ? Math.round((score / total) * 100) : 0
+      setResult({ score, total, percentage: pct })
       setStatus('submitted')
     } catch (err) {
       console.error('Submission error:', err)
