@@ -4,12 +4,12 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
   if (alreadySubmitted) {
     return (
       <div style={pageStyle}>
-        <div className="card" style={cardStyle}>
-          <div style={{ ...iconWrap, background: 'var(--warn-lt)' }}>
-            <span style={{ fontSize: 28 }}>⚠️</span>
+        <div className="card u-slide-up" style={cardStyle}>
+          <div style={{ ...iconWrap, background: 'var(--warn-lt)', border: '2px solid #FDE68A' }}>
+            <WarningIcon />
           </div>
           <h1 style={headingStyle}>Already submitted</h1>
-          <p style={bodyStyle}>
+          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
             This roll number has already completed this exam.
             Please contact your invigilator if you believe this is an error.
           </p>
@@ -18,74 +18,75 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
     )
   }
 
-  const pct = Number.isFinite(percentage) ? percentage : 0
+  const pct    = Number.isFinite(percentage) ? percentage : 0
   const passed = pct >= 60
-  const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : 'F'
+  const grade  = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : 'F'
+  const resultColor = passed ? 'var(--success)' : 'var(--error)'
+  const resultBg    = passed ? 'var(--success-lt)' : 'var(--error-lt)'
+  const resultBorder = passed ? '#A7F3D0' : '#FECACA'
 
   return (
     <div style={pageStyle}>
-      <div className="card" style={{ ...cardStyle, padding: '40px 36px' }}>
+      <div className="card u-slide-up" style={cardStyle}>
 
         {/* Status icon */}
-        <div style={{ ...iconWrap, background: passed ? 'var(--success-lt)' : 'var(--error-lt)' }}>
-          {passed
-            ? <CheckIcon color="var(--success)" />
-            : <XIcon color="var(--error)" />}
+        <div style={{ ...iconWrap, background: resultBg, border: `2px solid ${resultBorder}` }}>
+          {passed ? <CheckIcon /> : <XIcon />}
         </div>
 
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-3)', marginBottom: 4 }}>
+        {/* Status text */}
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: resultColor, marginBottom: 4 }}>
           {passed ? 'Congratulations!' : 'Better luck next time'}
         </div>
-        <h1 style={{ ...headingStyle, marginBottom: 2 }}>Exam submitted</h1>
-        <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-2)' }}>{batch?.name}</p>
+        <h1 style={{ ...headingStyle, marginBottom: 4 }}>Exam Submitted</h1>
+        <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>{batch?.name}</p>
 
-        {/* Score ring */}
-        <div style={{
-          background: passed ? 'var(--success-lt)' : 'var(--error-lt)',
-          border: `1px solid ${passed ? '#A7F3D0' : '#FECACA'}`,
-          borderRadius: 'var(--radius-md)',
-          padding: '24px 32px',
-          marginBottom: 24,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24,
-          flexWrap: 'wrap',
-        }}>
-          {/* Percentage */}
+        {/* Score hero block */}
+        <div
+          className="u-score-reveal"
+          style={{
+            background: resultBg,
+            border: `1px solid ${resultBorder}`,
+            borderRadius: 'var(--radius-md)',
+            padding: '28px 24px',
+            marginBottom: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, flexWrap: 'wrap',
+          }}
+        >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 56, fontWeight: 800, color: passed ? 'var(--success)' : 'var(--error)', lineHeight: 1, letterSpacing: '-2px' }}>
-              {pct}%
+            <div style={{ fontSize: 60, fontWeight: 800, color: resultColor, lineHeight: 1, letterSpacing: '-3px' }}>
+              {pct}<span style={{ fontSize: 32, letterSpacing: '-1px' }}>%</span>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontWeight: 500 }}>Score</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: resultColor, opacity: .7, marginTop: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              Score
+            </div>
           </div>
 
-          {/* Divider */}
-          <div style={{ width: 1, height: 48, background: passed ? '#A7F3D0' : '#FECACA' }} />
+          <div style={{ width: 1, height: 56, background: resultBorder, flexShrink: 0 }} />
 
-          {/* Grade */}
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, fontWeight: 800, color: passed ? 'var(--success)' : 'var(--error)', lineHeight: 1 }}>{grade}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontWeight: 500 }}>Grade</div>
+            <div style={{ fontSize: 56, fontWeight: 800, color: resultColor, lineHeight: 1 }}>{grade}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: resultColor, opacity: .7, marginTop: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              Grade
+            </div>
           </div>
         </div>
 
-        {/* Breakdown */}
-        <div style={{ display: 'flex', gap: 0, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 24 }}>
-          <StatCell label="Correct" value={score ?? 0} color="var(--success)" />
-          <StatCell label="Incorrect" value={(total ?? 0) - (score ?? 0)} color="var(--error)" border />
-          <StatCell label="Total" value={total ?? 0} color="var(--text-1)" border />
+        {/* Score breakdown */}
+        <div style={{ display: 'flex', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 24 }}>
+          <StatCell label="Correct"   value={score ?? 0}                         color="var(--success)" />
+          <StatCell label="Incorrect" value={(total ?? 0) - (score ?? 0)}        color="var(--error)"   border />
+          <StatCell label="Total"     value={total ?? 0}                          color="var(--text-1)"  border />
         </div>
 
-        {/* Student info */}
-        <div style={{
-          borderTop: '1px solid var(--border)', paddingTop: 16,
-          display: 'flex', justifyContent: 'center', gap: 20,
-          fontSize: 13, color: 'var(--text-2)', flexWrap: 'wrap',
-        }}>
-          <span>Roll No <strong style={{ color: 'var(--text-1)' }}>{rollNumber}</strong></span>
+        {/* Student identity */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'center', gap: 16, fontSize: 13, color: 'var(--text-2)', flexWrap: 'wrap' }}>
+          <span>Roll No <strong style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{rollNumber}</strong></span>
           <span style={{ color: 'var(--border-md)' }}>|</span>
-          <span><strong style={{ color: 'var(--text-1)' }}>{studentName}</strong></span>
+          <strong style={{ color: 'var(--text-1)' }}>{studentName}</strong>
         </div>
 
-        <p style={{ margin: '16px 0 0', fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
+        <p style={{ margin: '14px 0 0', fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
           You may close this window. Thank you for taking the exam.
         </p>
       </div>
@@ -95,49 +96,56 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
 
 function StatCell({ label, value, color, border }) {
   return (
-    <div style={{
-      flex: 1, padding: '14px 12px', textAlign: 'center',
-      borderLeft: border ? '1px solid var(--border)' : 'none',
-    }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color, lineHeight: 1, marginBottom: 4 }}>{value}</div>
-      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
+    <div style={{ flex: 1, padding: '16px 12px', textAlign: 'center', borderLeft: border ? '1px solid var(--border)' : 'none' }}>
+      <div style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1, marginBottom: 5 }}>{value}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</div>
     </div>
   )
 }
 
-function CheckIcon({ color }) {
+function CheckIcon() {
   return (
-    <svg width="28" height="28" fill="none" stroke={color} strokeWidth="2.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg width="26" height="26" fill="none" stroke="var(--success)" strokeWidth="2.5" viewBox="0 0 24 24">
+      <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
-function XIcon({ color }) {
+function XIcon() {
   return (
-    <svg width="28" height="28" fill="none" stroke={color} strokeWidth="2.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg width="26" height="26" fill="none" stroke="var(--error)" strokeWidth="2.5" viewBox="0 0 24 24">
+      <line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" />
+      <line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function WarningIcon() {
+  return (
+    <svg width="26" height="26" fill="none" stroke="var(--warn)" strokeWidth="2.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round" />
+      <line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" />
     </svg>
   )
 }
 
 const pageStyle = {
-  minHeight: '100vh', background: 'var(--bg)',
+  minHeight: '100vh',
+  background: 'linear-gradient(160deg, #F8FAFC 0%, #EEF2FF 60%, #F8FAFC 100%)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px',
 }
 const cardStyle = {
-  width: '100%', maxWidth: 440,
-  padding: '36px 32px', textAlign: 'center',
+  width: '100%', maxWidth: 420,
+  padding: '40px 32px', textAlign: 'center',
 }
 const iconWrap = {
-  width: 60, height: 60, borderRadius: '50%',
+  width: 64, height: 64, borderRadius: '50%',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
-  margin: '0 auto 16px',
+  margin: '0 auto 18px',
 }
 const headingStyle = {
-  margin: '0 0 8px', fontSize: 22, fontWeight: 700,
-  color: 'var(--text-1)', letterSpacing: '-.3px',
-}
-const bodyStyle = {
-  margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6,
+  margin: '0 0 8px',
+  fontSize: 22, fontWeight: 700,
+  color: 'var(--text-1)', letterSpacing: '-.35px',
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { logAuditEvent } from '../../lib/auditLog'
 import { format } from 'date-fns'
 
 export function BatchForm({ batch, onSaved, onCancel }) {
@@ -7,14 +8,15 @@ export function BatchForm({ batch, onSaved, onCancel }) {
   const locked = isEditing && (batch?.status === 'active' || batch?.status === 'completed')
 
   const [form, setForm] = useState({
-    name:                 batch?.name ?? '',
-    scheduled_date:       batch?.scheduled_start ? format(new Date(batch.scheduled_start), 'yyyy-MM-dd') : '',
-    scheduled_time:       batch?.scheduled_start ? format(new Date(batch.scheduled_start), 'HH:mm') : '',
-    duration_minutes:     batch?.duration_minutes ?? '',
-    questions_per_student:batch?.questions_per_student ?? '',
+    name:                  batch?.name ?? '',
+    scheduled_date:        batch?.scheduled_start ? format(new Date(batch.scheduled_start), 'yyyy-MM-dd') : '',
+    scheduled_time:        batch?.scheduled_start ? format(new Date(batch.scheduled_start), 'HH:mm') : '',
+    duration_minutes:      batch?.duration_minutes ?? '',
+    questions_per_student: batch?.questions_per_student ?? '',
+    access_code:           batch?.access_code ?? '',          // 2.2
   })
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState(null)
 
   function set(field, value) { setForm(p => ({ ...p, [field]: value })) }
 
@@ -28,18 +30,37 @@ export function BatchForm({ batch, onSaved, onCancel }) {
     const qps = form.questions_per_student ? parseInt(form.questions_per_student) : null
     if (qps !== null && (!Number.isInteger(qps) || qps <= 0)) { setError('Questions per student must be a positive integer.'); return }
 
+    // 2.2 access code validation: if provided, must be 4-6 alphanumeric chars
+    const code = form.access_code.trim().toUpperCase() || null
+    if (code && !/^[A-Z0-9]{4,6}$/.test(code)) {
+      setError('Access code must be 4–6 alphanumeric characters (letters and numbers only).')
+      return
+    }
+
     setSaving(true)
     const payload = {
       name: form.name.trim(),
       scheduled_start: start.toISOString(),
       duration_minutes: dur,
       questions_per_student: qps,
+      access_code: code,
     }
     const { error: err } = isEditing
       ? await supabase.from('batches').update(payload).eq('id', batch.id)
       : await supabase.from('batches').insert(payload)
 
-    if (err) { setError(err.message); setSaving(false) } else { onSaved() }
+    if (err) {
+      setError(err.message)
+      setSaving(false)
+    } else {
+      await logAuditEvent({
+        action: isEditing ? 'batch_updated' : 'batch_created',
+        entity: 'batch',
+        entityId: batch?.id,
+        details: { name: payload.name },
+      })
+      onSaved()
+    }
   }
 
   return (
@@ -74,6 +95,21 @@ export function BatchForm({ batch, onSaved, onCancel }) {
             disabled={locked}
             placeholder="e.g. 50  (leave blank = all)"
             style={{ ...inputStyle, maxWidth: 220, opacity: locked ? .5 : 1, cursor: locked ? 'not-allowed' : 'auto' }} />
+        </Field>
+
+        {/* 2.2 Access code */}
+        <Field
+          label="Access Code (optional)"
+          hint="4–6 alphanumeric characters. If set, students must enter this to enter the exam."
+        >
+          <input
+            type="text"
+            value={form.access_code}
+            onChange={e => set('access_code', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            maxLength={6}
+            placeholder="e.g. ABC123"
+            style={{ ...inputStyle, maxWidth: 180, fontFamily: 'var(--font-mono)', letterSpacing: '.1em' }}
+          />
         </Field>
 
         {error && (

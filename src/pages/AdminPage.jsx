@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react'
 import { supabase, ADMIN_EMAIL } from '../lib/supabase'
-import { AdminLayout } from '../components/admin/AdminLayout'
-import { BatchList } from '../components/admin/BatchList'
-import { BatchForm } from '../components/admin/BatchForm'
-import { QuestionUpload } from '../components/admin/QuestionUpload'
-import { ResultsView } from '../components/admin/ResultsView'
+import { AdminLayout }      from '../components/admin/AdminLayout'
+import { AdminDashboard }   from '../components/admin/AdminDashboard'
+import { BatchList }        from '../components/admin/BatchList'
+import { BatchForm }        from '../components/admin/BatchForm'
+import { QuestionUpload }   from '../components/admin/QuestionUpload'
+import { RosterUpload }     from '../components/admin/RosterUpload'
+import { ResultsView }      from '../components/admin/ResultsView'
+import { BulkBatchCreate }  from '../components/admin/BulkBatchCreate'
+import { ActivityLog }      from '../components/admin/ActivityLog'
 
-// Views: 'dashboard' | 'create-batch' | 'edit-batch' | 'questions' | 'results'
+// Views: 'dashboard' | 'batches' | 'create-batch' | 'edit-batch' | 'bulk-create'
+//        'questions' | 'roster' | 'results' | 'activity-log'
 
 export function AdminPage() {
-  const [user, setUser] = useState(null)
-  const [authLoading, setAuthLoading] = useState(true)
-  const [authError, setAuthError] = useState(null)
-  const [view, setView] = useState('dashboard')
+  const [user,          setUser]          = useState(null)
+  const [authLoading,   setAuthLoading]   = useState(true)
+  const [authError,     setAuthError]     = useState(null)
+  const [view,          setView]          = useState('dashboard')
   const [selectedBatch, setSelectedBatch] = useState(null)
 
   useEffect(() => {
@@ -47,9 +52,7 @@ export function AdminPage() {
     setAuthError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.href,
-      },
+      options: { redirectTo: window.location.href },
     })
     if (error) setAuthError(error.message)
   }
@@ -64,15 +67,16 @@ export function AdminPage() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div className="card" style={{ width: '100%', maxWidth: 380, padding: '40px 36px', textAlign: 'center' }}>
-          {/* Brand */}
-          <img src="/logo.png" alt="BharatVidya" style={{ width: 72, height: 72, borderRadius: '50%', display: 'block', margin: '0 auto 16px' }} />
-          <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>Admin Portal</h1>
+      <div style={{ minHeight: '100vh', background: 'var(--gradient-hero)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div className="card u-slide-up" style={{ width: '100%', maxWidth: 360, padding: '40px 36px', textAlign: 'center', boxShadow: 'var(--shadow-xl)' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 20px', border: '3px solid var(--accent-md)', boxShadow: 'var(--shadow-md)' }}>
+            <img src="/logo.png" alt="BharatVidya" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <h1 style={{ margin: '0 0 4px', fontSize: 21, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-.35px' }}>Admin Portal</h1>
           <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>BharatVidya Exams · Restricted access</p>
 
           {authError && (
-            <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16, textAlign: 'left' }}>
+            <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16, textAlign: 'left', lineHeight: 1.5 }}>
               {authError}
             </div>
           )}
@@ -82,83 +86,110 @@ export function AdminPage() {
             style={{
               all: 'unset', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              padding: '10px 16px',
-              border: '1.5px solid var(--border-md)', borderRadius: 8,
-              fontSize: 14, fontWeight: 500, color: 'var(--text-1)',
-              background: 'var(--surface)',
+              padding: '11px 16px', border: '1.5px solid var(--border-md)', borderRadius: 'var(--radius-sm)',
+              fontSize: 14, fontWeight: 600, color: 'var(--text-1)', background: 'var(--surface)',
+              transition: 'border-color .15s, box-shadow .15s',
             }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-md)'; e.currentTarget.style.boxShadow = 'var(--shadow-focus)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.boxShadow = 'none' }}
           >
             <GoogleLogo />
             Sign in with Google
           </button>
 
-          <p style={{ margin: '20px 0 0', fontSize: 11, color: 'var(--text-3)' }}>
-            Only <strong>chinmay@matramedia.co.in</strong> is authorised.
+          <p style={{ margin: '18px 0 0', fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
+            Access limited to <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)', fontSize: 10 }}>chinmay@matramedia.co.in</strong>
           </p>
         </div>
       </div>
     )
   }
 
-  function handleSelectBatch(batch) {
-    setSelectedBatch(batch)
-    setView('edit-batch')
-  }
+  /* ── Navigation helpers ──────────────────────────────────── */
+  function goToBatches()   { setView('batches'); setSelectedBatch(null) }
+  function goDashboard()   { setView('dashboard'); setSelectedBatch(null) }
 
-  function handleManageQuestions(batch) {
-    setSelectedBatch(batch)
-    setView('questions')
-  }
+  function handleSelectBatch(batch)     { setSelectedBatch(batch); setView('edit-batch') }
+  function handleManageQuestions(batch) { setSelectedBatch(batch); setView('questions') }
+  function handleManageRoster(batch)    { setSelectedBatch(batch); setView('roster') }
+  function handleViewResults(batch)     { setSelectedBatch(batch); setView('results') }
+  function handleBatchSaved()           { goDashboard() }
 
-  function handleViewResults(batch) {
-    setSelectedBatch(batch)
-    setView('results')
-  }
-
-  function handleBatchSaved() {
-    setView('dashboard')
-    setSelectedBatch(null)
-  }
+  /* ── Nav tabs (for AdminLayout to render) ─── */
+  const navItems = [
+    { label: 'Dashboard', active: view === 'dashboard',    onClick: goDashboard },
+    { label: 'All Batches', active: view === 'batches',    onClick: goToBatches },
+    { label: 'Activity Log', active: view === 'activity-log', onClick: () => setView('activity-log') },
+  ]
 
   return (
-    <AdminLayout user={user}>
+    <AdminLayout user={user} navItems={navItems}>
       {view === 'dashboard' && (
+        <AdminDashboard
+          onViewAllBatches={goToBatches}
+          onCreateBatch={() => setView('create-batch')}
+          onViewResults={handleViewResults}
+          onManageRoster={handleManageRoster}
+          onManageQuestions={handleManageQuestions}
+        />
+      )}
+
+      {view === 'batches' && (
         <BatchList
           onSelectBatch={handleSelectBatch}
           onCreateBatch={() => setView('create-batch')}
           onViewResults={handleViewResults}
           onManageQuestions={handleManageQuestions}
+          onManageRoster={handleManageRoster}
         />
       )}
 
       {view === 'create-batch' && (
         <div>
-          <button onClick={() => setView('dashboard')} style={backBtn}>← Back to batches</button>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+            <button onClick={goDashboard} style={backBtn}>← Back</button>
+            <button onClick={() => setView('bulk-create')} style={bulkBtn}>Bulk create from CSV</button>
+          </div>
           <h2 style={pageHeading}>Create New Batch</h2>
-          <BatchForm onSaved={handleBatchSaved} onCancel={() => setView('dashboard')} />
+          <BatchForm onSaved={handleBatchSaved} onCancel={goDashboard} />
         </div>
+      )}
+
+      {view === 'bulk-create' && (
+        <BulkBatchCreate
+          onBack={() => setView('create-batch')}
+          onCreated={goDashboard}
+        />
       )}
 
       {view === 'edit-batch' && selectedBatch && (
         <div>
-          <button onClick={() => { setView('dashboard'); setSelectedBatch(null) }} style={backBtn}>← Back to batches</button>
+          <button onClick={goToBatches} style={backBtn}>← Back to batches</button>
           <h2 style={pageHeading}>Edit Batch</h2>
-          <BatchForm batch={selectedBatch} onSaved={handleBatchSaved} onCancel={() => { setView('dashboard'); setSelectedBatch(null) }} />
+          <BatchForm batch={selectedBatch} onSaved={handleBatchSaved} onCancel={goToBatches} />
         </div>
       )}
 
       {view === 'questions' && selectedBatch && (
-        <QuestionUpload batch={selectedBatch} onBack={() => { setView('dashboard'); setSelectedBatch(null) }} />
+        <QuestionUpload batch={selectedBatch} onBack={goToBatches} />
+      )}
+
+      {view === 'roster' && selectedBatch && (
+        <RosterUpload batch={selectedBatch} onBack={goToBatches} />
       )}
 
       {view === 'results' && selectedBatch && (
-        <ResultsView batch={selectedBatch} onBack={() => { setView('dashboard'); setSelectedBatch(null) }} />
+        <ResultsView batch={selectedBatch} onBack={goToBatches} />
+      )}
+
+      {view === 'activity-log' && (
+        <ActivityLog onBack={goDashboard} />
       )}
     </AdminLayout>
   )
 }
 
-/* ── Helpers ────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────── */
 function GoogleLogo() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24">
@@ -170,5 +201,13 @@ function GoogleLogo() {
   )
 }
 
-const backBtn = { all: 'unset', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 20 }
+const backBtn = {
+  all: 'unset', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+  color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4,
+}
+const bulkBtn = {
+  all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+  color: 'var(--text-2)', display: 'inline-flex', alignItems: 'center', gap: 4,
+  padding: '4px 10px', border: '1px solid var(--border-md)', borderRadius: 6,
+}
 const pageHeading = { margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }

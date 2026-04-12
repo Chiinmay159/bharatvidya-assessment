@@ -1,48 +1,48 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { selectAndShuffleQuestions } from '../lib/seed'
+import { formatDbError } from '../lib/errors'
+
+const SESSION_KEY = (batchId, rollNumber) => `bv_session_${batchId}_${rollNumber}`
 
 /**
  * useExamState — manages the full student exam session lifecycle.
  *
  * Security hardening:
- * - Questions are fetched via get_exam_questions RPC (correct_answer stripped server-side)
- * - is_correct is set by a BEFORE INSERT trigger on responses (not client-computed)
- * - Submission calls submit_exam RPC (server-side scoring, not client-computed)
- * - get_my_attempt passes student name for ownership verification (P1-B)
- * - No stale-closure risk: finalizeSubmission no longer reads answeredMap
+ * - Questions fetched via get_exam_questions RPC (correct_answer stripped server-side)
+ * - is_correct set by a BEFORE INSERT trigger on responses (not client-computed)
+ * - Submission via submit_exam RPC (server-side scoring)
+ * - get_my_attempt passes student name for ownership verification
+ * - Session token (3.2): prevents concurrent sessions across browser tabs
  */
-export function useExamState({ batch, rollNumber, studentName }) {
-  const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'submitting' | 'submitted' | 'error'
-  const [attemptId, setAttemptId] = useState(null)
-  const [questions, setQuestions] = useState([]) // shuffled ShuffledQuestion[]
+export function useExamState({ batch, rollNumber, studentName, email }) {
+  const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'submitted' | 'error'
+  const [attemptId,    setAttemptId]    = useState(null)
+  const [sessionToken, setSessionToken] = useState(null)
+  const [questions,    setQuestions]    = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [answeredMap, setAnsweredMap] = useState({}) // { [questionId]: originalLabel }
-  const [result, setResult] = useState(null) // { score, total, percentage }
-  const [error, setError] = useState(null)
+  const [answeredMap,  setAnsweredMap]  = useState({})
+  const [result,       setResult]       = useState(null)
+  const [error,        setError]        = useState(null)
 
   const batchId = batch?.id
 
   useEffect(() => {
     if (!batch || !rollNumber || !studentName) return
     initExam()
-  }, [batch?.id, rollNumber, studentName])
+  }, [batch?.id, rollNumber, studentName, email])
 
   async function initExam() {
     try {
       setStatus('loading')
 
-      // Guard: block entry if the exam window has already closed
-      const examEndMs = new Date(batch.scheduled_start).getTime()
-        + batch.duration_minutes * 60 * 1000
+      // Guard: block entry if exam window has already closed
+      const examEndMs = new Date(batch.scheduled_start).getTime() + batch.duration_minutes * 60 * 1000
       if (Date.now() > examEndMs) {
-        throw new Error(
-          'The exam time window has already closed. Please contact your invigilator.'
-        )
+        throw new Error('The exam time window has already closed. Please contact your invigilator.')
       }
 
       // 1. Check for existing attempt (refresh recovery)
-      // P1-B: pass student name so the RPC verifies ownership
       const { data: existing } = await supabase.rpc('get_my_attempt', {
         p_batch_id:     batchId,
         p_roll_number:  rollNumber,
@@ -50,56 +50,75 @@ export function useExamState({ batch, rollNumber, studentName }) {
       })
 
       let currentAttemptId
+      let currentToken
 
       if (existing && existing.length > 0) {
         const attempt = existing[0]
         if (attempt.submitted_at) {
-          // Already submitted — go to result screen
           setResult({ alreadySubmitted: true })
           setStatus('submitted')
           return
         }
+
+        // 3.2 Session token validation: detect concurrent tab
+        const storedToken = sessionStorage.getItem(SESSION_KEY(batchId, rollNumber))
+        if (attempt.session_token && storedToken && storedToken !== attempt.session_token) {
+          throw new Error('This exam is already open in another window. Only one session is allowed.')
+        }
+
+        // Restore token into sessionStorage (handles page refresh in same tab)
+        if (attempt.session_token) {
+          sessionStorage.setItem(SESSION_KEY(batchId, rollNumber), attempt.session_token)
+          currentToken = attempt.session_token
+        }
+
         currentAttemptId = attempt.id
       } else {
-        // Create new attempt
+        // Create new attempt with session token (3.2)
+        const token = crypto.randomUUID()
         const { data: newAttempt, error: insertError } = await supabase
           .from('attempts')
-          .insert({ batch_id: batchId, roll_number: rollNumber, student_name: studentName })
+          .insert({
+            batch_id: batchId,
+            roll_number: rollNumber,
+            student_name: studentName,
+            email: email || null,
+            session_token: token,
+          })
           .select('id')
           .single()
+
         if (insertError) {
           if (insertError.code === '23505') {
             throw new Error('This roll number has already been registered for this exam.')
           }
           throw insertError
         }
+
+        sessionStorage.setItem(SESSION_KEY(batchId, rollNumber), token)
+        currentToken = token
         currentAttemptId = newAttempt.id
       }
 
       setAttemptId(currentAttemptId)
+      setSessionToken(currentToken)
 
-      // 2. Fetch questions via RPC — correct_answer is stripped server-side (P0-A)
+      // 2. Fetch questions via RPC — correct_answer stripped server-side
       const { data: rawQuestions, error: qError } = await supabase
         .rpc('get_exam_questions', { p_batch_id: batchId })
       if (qError) throw qError
 
-      // 3. Guard: questions must exist before proceeding
       if (!rawQuestions || rawQuestions.length === 0) {
-        throw new Error(
-          'No questions found for this exam. Please contact your invigilator.'
-        )
+        throw new Error('No questions found for this exam. Please contact your invigilator.')
       }
 
-      // 4. Randomize question selection and option order (deterministic per student)
+      // 3. Deterministic shuffle
       const shuffled = selectAndShuffleQuestions(
-        rawQuestions,
-        rollNumber,
-        batchId,
-        batch.questions_per_student ?? null
+        rawQuestions, rollNumber, batchId, batch.questions_per_student ?? null
       )
       setQuestions(shuffled)
 
-      // 5. Recover previously answered questions on refresh
+      // 4. Recover previous answers on refresh
       if (existing && existing.length > 0) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id: currentAttemptId,
@@ -108,8 +127,6 @@ export function useExamState({ batch, rollNumber, studentName }) {
           const map = {}
           prevResponses.forEach(r => { map[r.question_id] = r.selected_answer })
           setAnsweredMap(map)
-
-          // Advance to first unanswered question
           const answeredIds = new Set(prevResponses.map(r => r.question_id))
           const firstUnanswered = shuffled.findIndex(q => !answeredIds.has(q.questionId))
           setCurrentIndex(firstUnanswered === -1 ? shuffled.length - 1 : firstUnanswered)
@@ -118,28 +135,31 @@ export function useExamState({ batch, rollNumber, studentName }) {
 
       setStatus('ready')
     } catch (err) {
-      setError(err.message || 'Failed to start exam')
+      setError(formatDbError(err, 'Failed to start exam. Please try again.'))
       setStatus('error')
     }
   }
 
   /**
-   * Submit a single response and advance to next question.
-   * @param {string} selectedLabel — the DISPLAY label (A/B/C/D as shown on screen)
-   * @param {boolean} isFinal — true on the last question
+   * Submit a single response and advance.
    */
   const submitAnswer = useCallback(async (selectedLabel, isFinal = false) => {
     const question = questions[currentIndex]
     if (!question || !attemptId) return
 
-    // Map display label back to original label for storage
+    // 3.2 Session token check before each submission
+    const storedToken = sessionStorage.getItem(SESSION_KEY(batchId, rollNumber))
+    if (sessionToken && storedToken && storedToken !== sessionToken) {
+      setError('This exam is already open in another window. Only one session is allowed.')
+      setStatus('error')
+      return
+    }
+
     const selectedOption = question.options.find(o => o.label === selectedLabel)
     const originalLabel = selectedOption.originalLabel
 
-    // Optimistically update UI
     setAnsweredMap(prev => ({ ...prev, [question.questionId]: originalLabel }))
 
-    // Retry helper for network resilience
     async function insertWithRetry(payload, retries = 3) {
       for (let attempt = 0; attempt < retries; attempt++) {
         const { error } = await supabase.from('responses').insert(payload)
@@ -150,17 +170,15 @@ export function useExamState({ batch, rollNumber, studentName }) {
     }
 
     try {
-      // P0-B: is_correct is computed by the set_is_correct BEFORE INSERT trigger.
-      // We send false as a placeholder — the trigger overwrites it.
       await insertWithRetry({
         attempt_id:      attemptId,
         question_id:     question.questionId,
         selected_answer: originalLabel,
-        is_correct:      false,   // overwritten server-side by trigger
+        is_correct:      false,  // overwritten server-side by trigger
       })
     } catch (err) {
       console.error('Failed to save response:', err)
-      // Non-fatal: continue exam. submit_exam will count what's in DB.
+      // Non-fatal: continue exam
     }
 
     if (isFinal) {
@@ -168,28 +186,22 @@ export function useExamState({ batch, rollNumber, studentName }) {
     } else {
       setCurrentIndex(i => i + 1)
     }
-  }, [questions, currentIndex, attemptId])
+  }, [questions, currentIndex, attemptId, sessionToken, batchId, rollNumber])
 
   /**
-   * Auto-submit on timer expiry — submits whatever has been answered so far.
+   * Auto-submit on timer expiry.
    */
   const autoSubmit = useCallback(async () => {
     if (status === 'submitting' || status === 'submitted') return
     await finalizeSubmission()
   }, [status, attemptId])
 
-  /**
-   * Finalize submission via submit_exam RPC.
-   * P0-B: scoring is computed server-side from the responses table.
-   * P2-A: no longer reads answeredMap, so no stale-closure risk.
-   */
   async function finalizeSubmission() {
     if (!attemptId) return
     setStatus('submitting')
     try {
       const { data, error } = await supabase.rpc('submit_exam', { p_attempt_id: attemptId })
       if (error) throw error
-
       const { score, total_questions: total } = data[0]
       const pct = total > 0 ? Math.round((score / total) * 100) : 0
       setResult({ score, total, percentage: pct })
@@ -197,15 +209,16 @@ export function useExamState({ batch, rollNumber, studentName }) {
     } catch (err) {
       console.error('Submission error:', err)
       setStatus('error')
-      setError('Submission failed. Please contact the invigilator.')
+      setError(formatDbError(err, 'Submission failed. Please contact the invigilator.'))
     }
   }
 
   const currentQuestion = questions[currentIndex] ?? null
-  const totalQuestions = questions.length
+  const totalQuestions  = questions.length
 
   return {
     status,
+    attemptId,
     currentQuestion,
     currentIndex,
     totalQuestions,
