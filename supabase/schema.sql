@@ -16,8 +16,12 @@
 --   6. security_findings_round2  (2026-04-13) — column-level REVOKE on
 --      access_code, has_access_code generated column, session-token
 --      enforcement via claim_session/check_session RPCs
+--   7. authoritative_session_enforcement (2026-04-13) — save_response
+--      RPC replaces anon INSERT on responses (validates session token),
+--      submit_exam gains session-token validation, anon INSERT policy
+--      on responses dropped
 --
--- Minimum frontend version: commit after 006 migration
+-- Minimum frontend version: commit after 007 migration
 -- ================================================================
 
 
@@ -188,10 +192,7 @@ CREATE POLICY attempts_update_admin ON public.attempts
 CREATE POLICY attempts_delete_admin ON public.attempts
   FOR DELETE TO authenticated USING (is_admin());
 
--- 2.4 Responses — anon INSERT scoped to open attempts
-CREATE POLICY responses_insert_anon ON public.responses
-  FOR INSERT TO anon
-  WITH CHECK (public.attempt_is_open(attempt_id));
+-- 2.4 Responses — NO anon INSERT (use save_response RPC with session-token validation)
 CREATE POLICY responses_select_admin ON public.responses
   FOR SELECT TO authenticated USING (is_admin());
 
@@ -373,8 +374,11 @@ $$;
 REVOKE ALL ON FUNCTION public.get_my_responses(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_responses(uuid, text, text) TO anon, authenticated;
 
--- 4.5 Submit exam (server-side scoring)
-CREATE OR REPLACE FUNCTION public.submit_exam(p_attempt_id uuid)
+-- 4.5 Submit exam (server-side scoring + session-token validation)
+CREATE OR REPLACE FUNCTION public.submit_exam(
+  p_attempt_id    uuid,
+  p_session_token uuid DEFAULT NULL
+)
 RETURNS TABLE (score int, total_questions int)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -382,15 +386,17 @@ DECLARE
   v_total        int;
   v_batch_status text;
   v_submitted    timestamptz;
+  v_session      uuid;
 BEGIN
-  SELECT a.submitted_at, b.status
-  INTO   v_submitted, v_batch_status
+  SELECT a.submitted_at, b.status, a.session_token
+  INTO   v_submitted, v_batch_status, v_session
   FROM   public.attempts a
   JOIN   public.batches  b ON b.id = a.batch_id
   WHERE  a.id = p_attempt_id;
 
   IF NOT FOUND THEN RAISE EXCEPTION 'Attempt not found'; END IF;
 
+  -- Already submitted → return existing score (idempotent)
   IF v_submitted IS NOT NULL THEN
     SELECT a.score, a.total_questions INTO v_score, v_total
     FROM public.attempts a WHERE a.id = p_attempt_id;
@@ -400,6 +406,14 @@ BEGIN
 
   IF v_batch_status NOT IN ('active', 'completed') THEN
     RAISE EXCEPTION 'Exam is not accepting submissions';
+  END IF;
+
+  -- Validate session token (admin callers exempt)
+  IF v_session IS NOT NULL
+     AND NOT public.is_admin()
+     AND (p_session_token IS NULL OR p_session_token != v_session)
+  THEN
+    RAISE EXCEPTION 'Invalid session token';
   END IF;
 
   SELECT COUNT(*) FILTER (WHERE r.is_correct = true), COUNT(*)
@@ -414,8 +428,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.submit_exam(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.submit_exam(uuid) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.submit_exam(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_exam(uuid, uuid) TO anon, authenticated;
 
 -- 4.6 Create attempt (server-side, with access-code enforcement)
 CREATE OR REPLACE FUNCTION public.create_attempt(
@@ -557,7 +571,38 @@ $$;
 REVOKE ALL ON FUNCTION public.check_roster_access(uuid[], text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.check_roster_access(uuid[], text) TO anon, authenticated;
 
--- 4.12 Claim session token (rotates atomically; invalidates prior sessions)
+-- 4.12 Save response (session-token validated; replaces anon INSERT policy)
+CREATE OR REPLACE FUNCTION public.save_response(
+  p_attempt_id      uuid,
+  p_question_id     uuid,
+  p_selected_answer text,
+  p_session_token   uuid
+)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  -- Validate session token, attempt open, batch active
+  IF NOT EXISTS (
+    SELECT 1 FROM public.attempts a
+    JOIN public.batches b ON b.id = a.batch_id
+    WHERE a.id            = p_attempt_id
+      AND a.session_token = p_session_token
+      AND a.submitted_at  IS NULL
+      AND b.status        = 'active'
+  ) THEN
+    RAISE EXCEPTION 'Invalid session or attempt already closed';
+  END IF;
+
+  -- Insert (idempotent — duplicate silently ignored)
+  INSERT INTO public.responses (attempt_id, question_id, selected_answer, is_correct)
+  VALUES (p_attempt_id, p_question_id, p_selected_answer, false)
+  ON CONFLICT (attempt_id, question_id) DO NOTHING;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.save_response(uuid, uuid, text, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.save_response(uuid, uuid, text, uuid) TO anon, authenticated;
+
+-- 4.14 Claim session token (rotates atomically; invalidates prior sessions)
 CREATE OR REPLACE FUNCTION public.claim_session(
   p_attempt_id   uuid,
   p_roll_number  text,
@@ -586,7 +631,7 @@ $$;
 REVOKE ALL ON FUNCTION public.claim_session(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.claim_session(uuid, text, text) TO anon, authenticated;
 
--- 4.13 Check session validity (returns false when another window claimed a newer token)
+-- 4.15 Check session validity (returns false when another window claimed a newer token)
 CREATE OR REPLACE FUNCTION public.check_session(
   p_attempt_id    uuid,
   p_session_token uuid

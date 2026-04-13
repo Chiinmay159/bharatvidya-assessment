@@ -15,7 +15,9 @@ import { formatDbError } from '../lib/errors'
  * - get_my_responses requires roll_number + student_name for ownership
  * - UNIQUE(attempt_id, question_id) on responses prevents score tampering
  * - UNIQUE(batch_id, roll_number) on attempts prevents duplicate attempts
- * - Session tokens enforced via claim_session/check_session RPCs
+ * - Session tokens enforced authoritatively: save_response and submit_exam
+ *   both validate the token server-side (no anon INSERT policy on responses)
+ * - Heartbeat via check_session detects when another window claims the session
  */
 export function useExamState({ batch, rollNumber, studentName, email, accessCode }) {
   const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
@@ -137,9 +139,11 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     initExam()
   }, [batch, rollNumber, studentName, email, accessCode, initExam])
 
-  // Session heartbeat — detect when another window claims the session
+  // Session heartbeat — detect when another window claims the session.
+  // Runs during 'ready' and 'unsaved_warning' to prevent pausing detection.
   useEffect(() => {
-    if (!attemptId || !sessionTokenRef.current || status !== 'ready') return
+    if (!attemptId || !sessionTokenRef.current) return
+    if (status !== 'ready' && status !== 'unsaved_warning') return
     const interval = setInterval(async () => {
       try {
         const { data: valid } = await supabase.rpc('check_session', {
@@ -157,21 +161,28 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     return () => clearInterval(interval)
   }, [attemptId, status])
 
-  /** Drain the failed queue before final submission. */
+  /** Drain the failed queue before final submission (uses save_response RPC). */
   const drainFailedQueue = useCallback(async () => {
     const queue = [...failedQueueRef.current]
     if (queue.length === 0) return
     const remaining = []
-    for (const item of queue) {
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i]
       try {
-        const { error } = await supabase.from('responses').insert({
-          attempt_id:      item.attemptId,
-          question_id:     item.questionId,
-          selected_answer: item.originalLabel,
-          is_correct:      false, // overwritten server-side
+        const { error } = await supabase.rpc('save_response', {
+          p_attempt_id:      item.attemptId,
+          p_question_id:     item.questionId,
+          p_selected_answer: item.originalLabel,
+          p_session_token:   sessionTokenRef.current,
         })
-        // 23505 = unique violation → answer already saved (first attempt succeeded)
-        if (error && error.code !== '23505') remaining.push(item)
+        if (error) {
+          // Session conflict → all remaining will also fail, stop draining
+          if (error.message?.includes('Invalid session')) {
+            remaining.push(...queue.slice(i))
+            break
+          }
+          remaining.push(item)
+        }
       } catch {
         remaining.push(item)
       }
@@ -202,7 +213,10 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         console.warn(`Force-submitting with ${unsaved} unsaved answer(s)`)
       }
 
-      const { data, error } = await supabase.rpc('submit_exam', { p_attempt_id: attemptId })
+      const { data, error } = await supabase.rpc('submit_exam', {
+        p_attempt_id:    attemptId,
+        p_session_token: sessionTokenRef.current,
+      })
       if (error) throw error
       const { score, total_questions: total } = data[0]
       const pct = total > 0 ? Math.round((score / total) * 100) : 0
@@ -227,24 +241,25 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
 
     setAnsweredMap(prev => ({ ...prev, [question.questionId]: originalLabel }))
 
-    async function insertWithRetry(payload, retries = 3) {
-      for (let attempt = 0; attempt < retries; attempt++) {
-        const { error } = await supabase.from('responses').insert(payload)
+    /** Save via RPC with session-token validation. Retries on transient errors. */
+    async function saveWithRetry(questionId, answer, retries = 3) {
+      for (let i = 0; i < retries; i++) {
+        const { error } = await supabase.rpc('save_response', {
+          p_attempt_id:      attemptId,
+          p_question_id:     questionId,
+          p_selected_answer: answer,
+          p_session_token:   sessionTokenRef.current,
+        })
         if (!error) return
-        // 23505 = unique violation → answer already saved (idempotent)
-        if (error.code === '23505') return
-        if (attempt < retries - 1) await sleep(500 * Math.pow(2, attempt))
+        // Session conflict — don't retry, escalate immediately
+        if (error.message?.includes('Invalid session')) throw error
+        if (i < retries - 1) await sleep(500 * Math.pow(2, i))
         else throw error
       }
     }
 
     try {
-      await insertWithRetry({
-        attempt_id:      attemptId,
-        question_id:     question.questionId,
-        selected_answer: originalLabel,
-        is_correct:      false,  // overwritten server-side by trigger
-      })
+      await saveWithRetry(question.questionId, originalLabel)
     } catch (err) {
       console.error('Failed to save response after retries, queuing:', err)
       // Push to offline queue for retry before final submission

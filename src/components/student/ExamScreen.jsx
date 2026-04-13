@@ -32,13 +32,16 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     autoSubmit()
   }
 
+  // Timer stays active during ready, unsaved_warning, and submitting
+  // so countdown enforcement is never paused (Finding 2 fix).
+  const timerEnabled = status === 'ready' || status === 'unsaved_warning' || status === 'submitting'
   const { remainingMs, remainingFormatted, isUrgent, isExpired } = useTimer({
     scheduledStart: batch.scheduled_start,
     durationMinutes: batch.duration_minutes,
     onTimeUp: handleTimeUp,
     onBatchEnded: handleBatchEnded,
     batchId: batch.id,
-    enabled: status === 'ready',
+    enabled: timerEnabled,
   })
 
   // Fix 6: Accessible timer — announce at 10min, 5min, 1min thresholds only
@@ -126,9 +129,15 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
 
   /* ── Unsaved answers warning ──────────────────────────────── */
   if (status === 'unsaved_warning') {
+    const warnTimerColor = isUrgent ? 'var(--error)' : 'var(--text-2)'
     return (
       <div style={centerFlex}>
         <div className="card" style={{ maxWidth: 420, padding: '36px 28px', textAlign: 'center' }}>
+          {/* Live timer — countdown never pauses */}
+          <div style={{ marginBottom: 16, fontSize: 20, fontWeight: 700, color: warnTimerColor, fontFamily: 'var(--font-mono)' }}>
+            {remainingFormatted}
+            {isUrgent && <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--error)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Time running low</span>}
+          </div>
           <div style={{ fontSize: 44, marginBottom: 16 }}>📡</div>
           <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
             Some answers couldn't be saved
