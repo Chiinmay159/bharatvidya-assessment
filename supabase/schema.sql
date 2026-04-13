@@ -5,11 +5,13 @@
 -- Apply this to a fresh Supabase project to get the full schema.
 --
 -- Migration history (applied to live project msbpnpjjigheoplfnuly):
---   1. feature_expansion_v1  (2026-04-12) — tables, RPCs, base policies
---   2. security_hardening_v1 (2026-04-13) — RLS fixes, verify_roster_entry
---   3. lock_active_batch_edits (2026-04-13) — protect_active_batch trigger
+--   1. feature_expansion_v1      (2026-04-12) — tables, RPCs, base policies
+--   2. security_hardening_v1     (2026-04-13) — RLS fixes, verify_roster_entry
+--   3. lock_active_batch_edits   (2026-04-13) — protect_active_batch trigger
+--   4. tighten_rls_and_grants    (2026-04-13) — scope anon attempts, require
+--      student_name in get_my_attempt, explicit execute grants on all RPCs
 --
--- Minimum frontend version: commit 42abb76 or later
+-- Minimum frontend version: commit ed4458b or later
 -- ================================================================
 
 
@@ -25,6 +27,8 @@ AS $$
     false
   )
 $$;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
 
 
 -- ================================================================
@@ -154,7 +158,8 @@ CREATE POLICY questions_delete_admin ON public.questions
 
 -- 2.3 Attempts
 CREATE POLICY attempts_select_anon ON public.attempts
-  FOR SELECT TO anon USING (true);
+  FOR SELECT TO anon
+  USING (EXISTS (SELECT 1 FROM batches b WHERE b.id = attempts.batch_id AND b.status IN ('active','completed')));
 CREATE POLICY attempts_insert_active_batch ON public.attempts
   FOR INSERT TO anon
   WITH CHECK (EXISTS (SELECT 1 FROM batches b WHERE b.id = attempts.batch_id AND b.status = 'active'));
@@ -199,7 +204,7 @@ CREATE POLICY tab_switches_anon_select ON public.tab_switches
   FOR SELECT TO anon
   USING (EXISTS (SELECT 1 FROM attempts a WHERE a.id = tab_switches.attempt_id AND a.submitted_at IS NULL));
 CREATE POLICY tab_switches_admin_read ON public.tab_switches
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO authenticated USING (is_admin());
 
 
 -- ================================================================
@@ -275,6 +280,8 @@ CREATE OR REPLACE FUNCTION public.get_server_time()
 RETURNS timestamptz LANGUAGE sql SECURITY INVOKER AS $$
   SELECT now()
 $$;
+REVOKE ALL ON FUNCTION public.get_server_time() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_server_time() TO anon, authenticated;
 
 -- 4.2 Get exam questions (strips correct_answer)
 CREATE OR REPLACE FUNCTION public.get_exam_questions(p_batch_id uuid)
@@ -297,12 +304,14 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
     AND b.status IN ('active', 'completed')
   ORDER BY q.sort_order ASC
 $$;
+REVOKE ALL ON FUNCTION public.get_exam_questions(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_exam_questions(uuid) TO anon, authenticated;
 
--- 4.3 Get student's own attempt (no session_token exposed)
+-- 4.3 Get student's own attempt (requires student_name — no roll-only probing)
 CREATE OR REPLACE FUNCTION public.get_my_attempt(
   p_batch_id     uuid,
   p_roll_number  text,
-  p_student_name text DEFAULT NULL
+  p_student_name text
 )
 RETURNS TABLE (
   id              uuid,
@@ -315,25 +324,13 @@ RETURNS TABLE (
   score           int,
   total_questions int
 )
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF p_student_name IS NOT NULL THEN
-    RETURN QUERY
-      SELECT a.id, a.batch_id, a.roll_number, a.student_name, a.email,
-             a.started_at, a.submitted_at, a.score, a.total_questions
-      FROM public.attempts a
-      WHERE a.batch_id = p_batch_id
-        AND a.roll_number = p_roll_number
-        AND a.student_name = p_student_name;
-  ELSE
-    RETURN QUERY
-      SELECT a.id, a.batch_id, a.roll_number, a.student_name, a.email,
-             a.started_at, a.submitted_at, a.score, a.total_questions
-      FROM public.attempts a
-      WHERE a.batch_id = p_batch_id
-        AND a.roll_number = p_roll_number;
-  END IF;
-END;
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT a.id, a.batch_id, a.roll_number, a.student_name, a.email,
+         a.started_at, a.submitted_at, a.score, a.total_questions
+  FROM public.attempts a
+  WHERE a.batch_id = p_batch_id
+    AND a.roll_number = p_roll_number
+    AND a.student_name = p_student_name;
 $$;
 REVOKE ALL ON FUNCTION public.get_my_attempt(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_attempt(uuid, text, text) TO anon, authenticated;
@@ -348,6 +345,8 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   WHERE r.attempt_id = p_attempt_id
     AND a.submitted_at IS NULL
 $$;
+REVOKE ALL ON FUNCTION public.get_my_responses(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_my_responses(uuid) TO anon, authenticated;
 
 -- 4.5 Submit exam (server-side scoring)
 CREATE OR REPLACE FUNCTION public.submit_exam(p_attempt_id uuid)
@@ -390,6 +389,9 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.submit_exam(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_exam(uuid) TO anon, authenticated;
+
 -- 4.6 Replace questions (admin-only bulk upload)
 CREATE OR REPLACE FUNCTION public.replace_questions(p_batch_id uuid, p_questions jsonb)
 RETURNS int
@@ -421,6 +423,9 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.replace_questions(uuid, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.replace_questions(uuid, jsonb) TO authenticated;
+
 -- 4.7 Replace roster (admin-only, guarded)
 CREATE OR REPLACE FUNCTION public.replace_roster(p_batch_id uuid, p_rows jsonb)
 RETURNS void
@@ -434,6 +439,9 @@ BEGIN
   FROM jsonb_array_elements(p_rows) AS r;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.replace_roster(uuid, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.replace_roster(uuid, jsonb) TO authenticated;
 
 -- 4.8 Verify roster entry (anon-safe — returns only the caller's own row)
 CREATE OR REPLACE FUNCTION public.verify_roster_entry(p_batch_id uuid, p_roll_number text)

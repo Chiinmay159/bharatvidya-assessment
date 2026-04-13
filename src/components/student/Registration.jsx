@@ -54,8 +54,9 @@ export function Registration({ batch, onRegistered, onBack }) {
         if (entryErr) throw entryErr
         const student = entry?.[0]
 
+        // Pass student_name from roster to prevent roll-number-only probing
         const { data: existing } = await supabase.rpc('get_my_attempt', {
-          p_batch_id: batch.id, p_roll_number: roll,
+          p_batch_id: batch.id, p_roll_number: roll, p_student_name: student?.student_name,
         })
         if (existing?.length > 0 && existing[0].submitted_at) {
           setError('This roll number has already completed this exam.')
@@ -86,8 +87,9 @@ export function Registration({ batch, onRegistered, onBack }) {
 
     setSubmitting(true)
     try {
+      // Pass student_name to scope the lookup to this student
       const { data: existing } = await supabase.rpc('get_my_attempt', {
-        p_batch_id: batch.id, p_roll_number: roll,
+        p_batch_id: batch.id, p_roll_number: roll, p_student_name: name,
       })
       if (existing?.length > 0 && existing[0].submitted_at) {
         setError('This roll number has already completed this exam.')
