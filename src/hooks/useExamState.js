@@ -261,8 +261,14 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     try {
       await saveWithRetry(question.questionId, originalLabel)
     } catch (err) {
+      // Session conflict = hard stop — lock the student out immediately
+      if (err?.message?.includes('Invalid session')) {
+        setError('This exam is already open in another window. Close that tab and refresh to continue.')
+        setStatus('error')
+        return
+      }
+      // Transient network error — queue for retry before submission
       console.error('Failed to save response after retries, queuing:', err)
-      // Push to offline queue for retry before final submission
       failedQueueRef.current.push({ questionId: question.questionId, originalLabel, attemptId })
       setPendingCount(failedQueueRef.current.length)
     }
