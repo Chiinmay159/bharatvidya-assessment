@@ -17,6 +17,7 @@ const BASE_COLUMNS = [
   { key: 'roll_number',    label: 'Roll Number',     default: true },
   { key: 'student_name',   label: 'Name',             default: true },
   { key: 'email',          label: 'Email',            default: true },
+  { key: 'attempt_number', label: 'Attempt',          default: true },
   { key: 'score',          label: 'Score',            default: true },
   { key: 'total_questions',label: 'Total',            default: true },
   { key: 'percentage',     label: 'Percentage',       default: true },
@@ -106,17 +107,13 @@ export function ResultsView({ batch, onBack }) {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  /* ── Delete single attempt ───────────────────────────── */
+  /* ── Delete single attempt (via RPC to cascade FK deps) ── */
   async function handleDeleteAttempt() {
     if (!confirmDelete) return
     setActionLoading(true); setActionError(null)
     try {
-      const { error } = await supabase.from('attempts').delete().eq('id', confirmDelete.id)
+      const { error } = await supabase.rpc('delete_attempt', { p_attempt_id: confirmDelete.id })
       if (error) throw error
-      await logAuditEvent({
-        action: 'attempt_deleted', entity: 'attempt', entityId: confirmDelete.id,
-        details: { batch_name: batch.name, roll_number: confirmDelete.roll_number },
-      })
       setConfirmDelete(null)
       await fetchAll()
     } catch (err) {
@@ -126,16 +123,12 @@ export function ResultsView({ batch, onBack }) {
     }
   }
 
-  /* ── Reset all attempts (3.5: requires typing batch name) ── */
+  /* ── Reset all attempts (via RPC to cascade FK deps) ── */
   async function handleResetBatch() {
     setActionLoading(true); setActionError(null)
     try {
-      const { error } = await supabase.from('attempts').delete().eq('batch_id', batch.id)
+      const { error } = await supabase.rpc('reset_batch_attempts', { p_batch_id: batch.id })
       if (error) throw error
-      await logAuditEvent({
-        action: 'batch_reset', entity: 'batch', entityId: batch.id,
-        details: { batch_name: batch.name },
-      })
       setConfirmReset(false); setResetNameInput('')
       await fetchAll()
     } catch (err) {
@@ -199,6 +192,7 @@ export function ResultsView({ batch, onBack }) {
       if (exportCols.roll_number)     row.roll_number     = a.roll_number
       if (exportCols.student_name)    row.student_name    = a.student_name
       if (exportCols.email)           row.email           = a.email || ''
+      if (exportCols.attempt_number)  row.attempt_number  = a.attempt_number ?? 1
       if (exportCols.score)           row.score           = a.score ?? ''
       if (exportCols.total_questions) row.total_questions = a.total_questions ?? ''
       if (exportCols.percentage)      row.percentage      = a.total_questions ? ((a.score / a.total_questions) * 100).toFixed(1) : ''

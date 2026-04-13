@@ -91,16 +91,21 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
           } else {
             // Not a retry — show the latest submitted result
             const showResults = batch.show_results !== false
-            const pct = (showResults && latest.score != null && latest.total_questions > 0)
-              ? Math.round((latest.score / latest.total_questions) * 100) : null
             const passPercentage = batch.pass_percentage ?? null
             const attemptNum = latest.attempt_number ?? 1
             const maxAttempts = batch.max_attempts ?? 1
+
+            // Compute actual percentage for retry logic (not shown to student when hidden)
+            const actualPct = (latest.score != null && latest.total_questions > 0)
+              ? Math.round((latest.score / latest.total_questions) * 100) : null
+            // Display percentage — null when results are hidden
+            const displayPct = showResults ? actualPct : null
+
             const canRetry = (
               attemptNum < maxAttempts
               && passPercentage != null
-              && pct != null
-              && pct < passPercentage
+              && actualPct != null
+              && actualPct < passPercentage
               && batch.status === 'active'
             )
 
@@ -108,7 +113,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
               alreadySubmitted: true,
               score: showResults ? latest.score : null,
               total: latest.total_questions,
-              percentage: pct,
+              percentage: displayPct,
               showResults,
               passPercentage,
               canRetry,

@@ -38,16 +38,20 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
     if (!ids.length) return
     const [qr, subr, allAttempts, rosterR] = await Promise.all([
       supabase.from('questions').select('batch_id').in('batch_id', ids),
-      supabase.from('attempts').select('batch_id').in('batch_id', ids).not('submitted_at', 'is', null),
-      supabase.from('attempts').select('batch_id').in('batch_id', ids),
+      supabase.from('attempts').select('batch_id, roll_number').in('batch_id', ids).not('submitted_at', 'is', null),
+      supabase.from('attempts').select('batch_id, roll_number').in('batch_id', ids),
       supabase.from('roster').select('batch_id').in('batch_id', ids),
     ])
     const qc = {}, ac = {}, sc = {}, rc = {}
     ids.forEach(id => { qc[id] = 0; ac[id] = 0; sc[id] = 0; rc[id] = 0 })
     qr.data?.forEach(q  => { qc[q.batch_id] = (qc[q.batch_id] || 0) + 1 })
-    subr.data?.forEach(a => { ac[a.batch_id] = (ac[a.batch_id] || 0) + 1 })
-    allAttempts.data?.forEach(a => { sc[a.batch_id] = (sc[a.batch_id] || 0) + 1 })
     rosterR.data?.forEach(r => { rc[r.batch_id] = (rc[r.batch_id] || 0) + 1 })
+    // Count UNIQUE students (by roll_number) — retries don't inflate numbers
+    const submittedSets = {}, startedSets = {}
+    ids.forEach(id => { submittedSets[id] = new Set(); startedSets[id] = new Set() })
+    subr.data?.forEach(a => { submittedSets[a.batch_id]?.add(a.roll_number) })
+    allAttempts.data?.forEach(a => { startedSets[a.batch_id]?.add(a.roll_number) })
+    ids.forEach(id => { ac[id] = submittedSets[id].size; sc[id] = startedSets[id].size })
     setQCounts(qc); setSCounts(ac); setStartedCounts(sc); setRosterCounts(rc)
   }, [])
 

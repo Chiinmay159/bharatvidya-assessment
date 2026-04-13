@@ -1,9 +1,13 @@
 import { formatInTimeZone } from 'date-fns-tz'
 
 export function ResultsTable({ batch, sorted, tabSwitches, sortKey, sortDir, toggleSort, onDeleteAttempt }) {
+  const hasRetries = (batch.max_attempts ?? 1) > 1
+  const passThreshold = batch.pass_percentage ?? 60
+
   const columns = [
     { label: 'Roll No.',   key: 'roll_number' },
     { label: 'Name',       key: 'student_name' },
+    ...(hasRetries ? [{ label: 'Attempt', key: 'attempt_number' }] : []),
     { label: 'Score',      key: 'score' },
     { label: 'Total',      key: 'total_questions' },
     { label: '%',          key: 'percentage' },
@@ -38,12 +42,15 @@ export function ResultsTable({ batch, sorted, tabSwitches, sortKey, sortDir, tog
             const pct       = a.total_questions ? ((a.score / a.total_questions) * 100).toFixed(1) : '-'
             const timeTaken = a.submitted_at && a.started_at
               ? Math.round((new Date(a.submitted_at) - new Date(a.started_at)) / 60000) : '-'
-            const passed  = parseFloat(pct) >= 60
+            const passed  = parseFloat(pct) >= passThreshold
             const tswitch = tabSwitches[a.id] || 0
             return (
               <tr key={a.id} style={{ borderBottom: i < sorted.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <td style={{ padding: '11px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-2)' }}>{a.roll_number}</td>
                 <td style={{ padding: '11px 14px', fontWeight: 500, color: 'var(--text-1)' }}>{a.student_name}</td>
+                {hasRetries && (
+                  <td style={{ padding: '11px 14px', color: 'var(--text-3)', fontSize: 12 }}>{a.attempt_number ?? 1}</td>
+                )}
                 <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--text-1)' }}>{a.score ?? '-'}</td>
                 <td style={{ padding: '11px 14px', color: 'var(--text-3)' }}>{a.total_questions ?? '-'}</td>
                 <td style={{ padding: '11px 14px' }}>
@@ -70,4 +77,4 @@ export function ResultsTable({ batch, sorted, tabSwitches, sortKey, sortDir, tog
   )
 }
 
-const deleteLink = { all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--error)', padding: '3px 8px', borderRadius: 5, border: '1px solid #FECACA', background: 'var(--error-lt)', whiteSpace: 'nowrap' }
+const deleteLink = { all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--error)', padding: '3px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid #FECACA', background: 'var(--error-lt)', whiteSpace: 'nowrap' }

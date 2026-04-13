@@ -30,12 +30,12 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
     return (
       <div style={pageStyle}>
         <div className="card u-slide-up" style={cardStyle}>
-          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '2px solid #FECACA' }}>
-            <XIcon />
+          <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
+            <RetryIcon />
           </div>
           <h1 style={headingStyle}>Exam Submitted</h1>
           <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
-            You did not meet the passing criteria for this exam.
+            Your answers have been recorded. You are eligible for another attempt.
           </p>
           <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
           <RetryButton onRetry={onRetry} />
@@ -93,12 +93,12 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
     return (
       <div style={pageStyle}>
         <div className="card u-slide-up" style={cardStyle}>
-          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '2px solid #FECACA' }}>
-            <XIcon />
+          <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
+            <RetryIcon />
           </div>
           <h1 style={headingStyle}>Exam Submitted</h1>
           <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
-            You did not meet the passing criteria for this exam.
+            Your answers have been recorded. You are eligible for another attempt.
           </p>
           <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
           <RetryButton onRetry={onRetry} />
@@ -280,6 +280,15 @@ function WarningIcon() {
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round" />
       <line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function RetryIcon() {
+  return (
+    <svg aria-hidden="true" width="26" height="26" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
+      <polyline points="1 4 1 10 7 10" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

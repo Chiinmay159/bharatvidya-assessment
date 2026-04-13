@@ -24,8 +24,10 @@
 --      show_results/pass_percentage/max_attempts columns, attempt_number,
 --      relaxed UNIQUE constraint, updated create_attempt/submit_exam/
 --      get_my_attempt for retry support, protect_active_batch updated
+--   9. fix_delete_cascade_and_retry_alignment (2026-04-13) — delete_attempt
+--      and reset_batch_attempts RPCs (FK-safe cascade for admin delete/reset)
 --
--- Minimum frontend version: commit after 008 migration
+-- Minimum frontend version: commit after 009 migration
 -- ================================================================
 
 
@@ -767,3 +769,81 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 REVOKE ALL ON FUNCTION public.check_session(uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.check_session(uuid, uuid) TO anon, authenticated;
+
+-- 4.16 Delete attempt (admin cascade — FK-safe)
+CREATE OR REPLACE FUNCTION public.delete_attempt(p_attempt_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_roll   text;
+  v_batch  uuid;
+  v_bname  text;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT a.roll_number, a.batch_id, b.name
+  INTO   v_roll, v_batch, v_bname
+  FROM   public.attempts a
+  JOIN   public.batches b ON b.id = a.batch_id
+  WHERE  a.id = p_attempt_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Attempt not found';
+  END IF;
+
+  INSERT INTO public.audit_log (action, entity, entity_id, actor, details)
+  VALUES (
+    'attempt_deleted', 'attempt', p_attempt_id,
+    coalesce(current_setting('request.jwt.claims', true)::json->>'email', 'unknown'),
+    jsonb_build_object('roll_number', v_roll, 'batch_name', v_bname)
+  );
+
+  DELETE FROM public.tab_switches WHERE attempt_id = p_attempt_id;
+  DELETE FROM public.responses    WHERE attempt_id = p_attempt_id;
+  DELETE FROM public.attempts     WHERE id = p_attempt_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.delete_attempt(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_attempt(uuid) TO authenticated;
+
+-- 4.17 Reset batch attempts (admin cascade — FK-safe)
+CREATE OR REPLACE FUNCTION public.reset_batch_attempts(p_batch_id uuid)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_name  text;
+  v_count int;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT name INTO v_name FROM public.batches WHERE id = p_batch_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Batch not found';
+  END IF;
+
+  SELECT COUNT(*) INTO v_count FROM public.attempts WHERE batch_id = p_batch_id;
+
+  INSERT INTO public.audit_log (action, entity, entity_id, actor, details)
+  VALUES (
+    'batch_reset', 'batch', p_batch_id,
+    coalesce(current_setting('request.jwt.claims', true)::json->>'email', 'unknown'),
+    jsonb_build_object('batch_name', v_name, 'attempts_deleted', v_count)
+  );
+
+  DELETE FROM public.tab_switches WHERE attempt_id IN (
+    SELECT id FROM public.attempts WHERE batch_id = p_batch_id
+  );
+  DELETE FROM public.responses WHERE attempt_id IN (
+    SELECT id FROM public.attempts WHERE batch_id = p_batch_id
+  );
+  DELETE FROM public.attempts WHERE batch_id = p_batch_id;
+
+  RETURN v_count;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.reset_batch_attempts(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reset_batch_attempts(uuid) TO authenticated;
