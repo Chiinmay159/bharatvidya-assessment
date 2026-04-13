@@ -9,7 +9,7 @@ export function Registration({ batch, onRegistered, onBack }) {
   const [studentName, setStudentName] = useState('')
   const [submitting,  setSubmitting]  = useState(false)
   const [error,       setError]       = useState(null)
-  const [rosterEntry, setRosterEntry] = useState(null)
+  const [, setRosterEntry] = useState(null)
   const [lookingUp,   setLookingUp]   = useState(false)
   const [phase,       setPhase]       = useState('roll') // 'roll' | 'name' | 'ready'
 
@@ -33,29 +33,26 @@ export function Registration({ batch, onRegistered, onBack }) {
 
     setLookingUp(true)
     try {
-      const { count, error: countErr } = await supabase
-        .from('roster')
-        .select('*', { count: 'exact', head: true })
-        .eq('batch_id', batch.id)
-
-      if (countErr) throw countErr
-      const hasRoster = (count ?? 0) > 0
+      // Use RPC to check roster access (no direct table read)
+      const { data: rosterCheck } = await supabase.rpc('check_roster_access', {
+        p_batch_ids: [batch.id], p_roll_number: roll,
+      })
+      const info = rosterCheck?.[0]
+      const hasRoster = info?.has_roster ?? false
 
       if (hasRoster) {
-        const { data: entry, error: entryErr } = await supabase
-          .from('roster')
-          .select('student_name, email')
-          .eq('batch_id', batch.id)
-          .eq('roll_number', roll)
-          .maybeSingle()
-
-        if (entryErr) throw entryErr
-
-        if (!entry) {
+        if (!info.student_in_roster) {
           setError('You are not registered for this exam. Contact your instructor.')
           setLookingUp(false)
           return
         }
+
+        // Fetch only this student's name/email via secure RPC
+        const { data: entry, error: entryErr } = await supabase.rpc('verify_roster_entry', {
+          p_batch_id: batch.id, p_roll_number: roll,
+        })
+        if (entryErr) throw entryErr
+        const student = entry?.[0]
 
         const { data: existing } = await supabase.rpc('get_my_attempt', {
           p_batch_id: batch.id, p_roll_number: roll,
@@ -66,9 +63,9 @@ export function Registration({ batch, onRegistered, onBack }) {
           return
         }
 
-        setRosterEntry(entry)
+        setRosterEntry(student)
         setPhase('ready')
-        onRegistered({ rollNumber: roll, studentName: entry.student_name, email: entry.email })
+        onRegistered({ rollNumber: roll, studentName: student?.student_name, email: student?.email })
       } else {
         setRosterEntry(false)
         setPhase('name')

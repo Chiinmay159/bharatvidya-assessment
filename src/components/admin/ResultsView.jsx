@@ -586,8 +586,8 @@ function QuestionList({ title, questions, colorVar }) {
 
 function Modal({ children, onClose }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15,23,42,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="card" style={{ maxWidth: 440, width: '100%', padding: '32px 28px', textAlign: 'center', boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15,23,42,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 440, width: '100%', padding: '32px 28px', textAlign: 'center', boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
         {children}
       </div>
     </div>

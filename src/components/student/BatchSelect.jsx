@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
@@ -10,43 +10,53 @@ export function BatchSelect({ onSelectBatch }) {
   const [filtered,   setFiltered]   = useState([])
   const [filtering,  setFiltering]  = useState(false)
 
-  const fetchBatches = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('batches')
-      .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, access_code')
-      .in('status', ['scheduled', 'active'])
-      .order('scheduled_start', { ascending: true })
+  useEffect(() => {
+    let cancelled = false
+    async function fetchBatches() {
+      const { data, error } = await supabase
+        .from('batches')
+        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, access_code')
+        .in('status', ['scheduled', 'active'])
+        .order('scheduled_start', { ascending: true })
 
-    if (error) setError('Failed to load exam batches. Please refresh.')
-    else { setBatches(data || []); setError(null) }
-    setLoading(false)
+      if (cancelled) return
+      if (error) setError('Failed to load exam batches. Please refresh.')
+      else { setBatches(data || []); setError(null) }
+      setLoading(false)
+    }
+    fetchBatches()
+    const interval = setInterval(fetchBatches, 30_000)
+    return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
   useEffect(() => {
-    fetchBatches()
-    const interval = setInterval(fetchBatches, 30_000)
-    return () => clearInterval(interval)
-  }, [fetchBatches])
-
-  useEffect(() => {
-    if (!rollFilter.trim() || !batches.length) { setFiltered(batches); return }
-    applyRosterFilter(rollFilter.trim(), batches)
+    if (!rollFilter.trim() || !batches.length) {
+      // Sync derivation: mirror batches when no filter is active
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFiltered(batches)
+      return
+    }
+    let cancelled = false
+    async function applyRosterFilter() {
+      setFiltering(true)
+      const ids = batches.map(b => b.id)
+      try {
+        const { data: rosterInfo } = await supabase.rpc('check_roster_access', {
+          p_batch_ids: ids, p_roll_number: rollFilter.trim(),
+        })
+        if (cancelled) return
+        const lookup = new Map((rosterInfo || []).map(r => [r.batch_id, r]))
+        setFiltered(batches.filter(b => {
+          const info = lookup.get(b.id)
+          if (!info || !info.has_roster) return true
+          return info.student_in_roster
+        }))
+      } catch { if (!cancelled) setFiltered(batches) }
+      if (!cancelled) setFiltering(false)
+    }
+    applyRosterFilter()
+    return () => { cancelled = true }
   }, [rollFilter, batches])
-
-  async function applyRosterFilter(roll, allBatches) {
-    setFiltering(true)
-    const ids = allBatches.map(b => b.id)
-    try {
-      const { data: allRoster } = await supabase
-        .from('roster').select('batch_id').in('batch_id', ids)
-      const batchesWithRoster = new Set((allRoster || []).map(r => r.batch_id))
-      const { data: myRoster } = await supabase
-        .from('roster').select('batch_id').in('batch_id', ids).eq('roll_number', roll)
-      const myBatches = new Set((myRoster || []).map(r => r.batch_id))
-      setFiltered(allBatches.filter(b => !batchesWithRoster.has(b.id) || myBatches.has(b.id)))
-    } catch (_) { setFiltered(allBatches) }
-    setFiltering(false)
-  }
 
   const displayBatches = rollFilter.trim() ? filtered : batches
 

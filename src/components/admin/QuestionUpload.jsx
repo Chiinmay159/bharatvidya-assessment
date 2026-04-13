@@ -10,12 +10,15 @@ export function QuestionUpload({ batch, onBack }) {
   const [existingCount, setExistingCount] = useState(0)
   const [success, setSuccess]           = useState(false)
 
-  useEffect(() => { fetchCount() }, [batch.id])
-
-  async function fetchCount() {
-    const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id)
-    setExistingCount(count ?? 0)
-  }
+  useEffect(() => {
+    let cancelled = false
+    async function fetchCount() {
+      const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id)
+      if (!cancelled) setExistingCount(count ?? 0)
+    }
+    fetchCount()
+    return () => { cancelled = true }
+  }, [batch.id])
 
   async function handleFile(e) {
     const file = e.target.files[0]

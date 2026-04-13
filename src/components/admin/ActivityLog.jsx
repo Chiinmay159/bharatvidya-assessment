@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
@@ -36,24 +36,28 @@ export function ActivityLog({ onBack }) {
   const [page,      setPage]      = useState(0)
   const PAGE_SIZE = 50
 
-  const fetchEvents = useCallback(async () => {
-    setLoading(true)
-    let query = supabase
-      .from('audit_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchEvents() {
+      setLoading(true)
+      let query = supabase
+        .from('audit_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
-    if (filter !== 'all') {
-      query = query.eq('action', filter)
+      if (filter !== 'all') {
+        query = query.eq('action', filter)
+      }
+      const { data } = await query
+      if (!cancelled) {
+        setEvents(data || [])
+        setLoading(false)
+      }
     }
-    const { data } = await query
-    setEvents(data || [])
-    setLoading(false)
+    fetchEvents()
+    return () => { cancelled = true }
   }, [filter, page])
-
-  useEffect(() => { fetchEvents() }, [fetchEvents])
-  useEffect(() => { setPage(0) }, [filter])
 
   function formatDetails(details) {
     if (!details) return null
@@ -77,7 +81,7 @@ export function ActivityLog({ onBack }) {
         </div>
         <select
           value={filter}
-          onChange={e => setFilter(e.target.value)}
+          onChange={e => { setFilter(e.target.value); setPage(0) }}
           style={{ padding: '7px 12px', border: '1px solid var(--border-md)', borderRadius: 'var(--radius-sm)', fontSize: 13, color: 'var(--text-1)', background: 'var(--surface)', cursor: 'pointer' }}
         >
           <option value="all">All actions</option>

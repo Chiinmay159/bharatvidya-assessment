@@ -56,6 +56,8 @@ export function AdminDashboard({ onViewAllBatches, onCreateBatch, onViewResults,
   }, [])
 
   useEffect(() => {
+    // fetchAll is async—setState calls happen after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAll()
     const interval = setInterval(fetchAll, 30_000)
     return () => clearInterval(interval)

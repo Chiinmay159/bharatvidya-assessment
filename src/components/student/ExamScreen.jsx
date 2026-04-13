@@ -7,7 +7,6 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
   const [selectedLabel,    setSelectedLabel]    = useState(null)
   const [showConfirm,      setShowConfirm]      = useState(false)
   const [submittingAnswer, setSubmittingAnswer] = useState(false)
-  const [duplicateSession, setDuplicateSession] = useState(false)
   const autoSubmitCalledRef = useRef(false)
 
   const {
@@ -28,7 +27,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     autoSubmit()
   }
 
-  const { remainingFormatted, isUrgent, isExpired, syncStatus } = useTimer({
+  const { remainingFormatted, isUrgent, isExpired } = useTimer({
     scheduledStart: batch.scheduled_start,
     durationMinutes: batch.duration_minutes,
     onTimeUp: handleTimeUp,
@@ -37,7 +36,17 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     enabled: status === 'ready',
   })
 
-  useEffect(() => { setSelectedLabel(null); setShowConfirm(false) }, [currentIndex])
+  // Reset selection when question index changes
+  const prevIndexRef = useRef(currentIndex)
+  useEffect(() => {
+    if (prevIndexRef.current !== currentIndex) {
+      prevIndexRef.current = currentIndex
+      /* eslint-disable react-hooks/set-state-in-effect -- reset on index change */
+      setSelectedLabel(null)
+      setShowConfirm(false)
+      /* eslint-enable react-hooks/set-state-in-effect */
+    }
+  }, [currentIndex])
   useEffect(() => { if (status === 'submitted' && result) onComplete(result) }, [status, result, onComplete])
 
   // 3.1 Tab switch detection
@@ -65,12 +74,8 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     return () => { mounted = false; document.removeEventListener('visibilitychange', handleVisibilityChange) }
   }, [attemptId, status])
 
-  // 3.2 Duplicate session detection
-  useEffect(() => {
-    if (status === 'error' && error?.includes('already open in another window')) {
-      setDuplicateSession(true)
-    }
-  }, [status, error])
+  // 3.2 Duplicate session detection (derived, not state)
+  const duplicateSession = status === 'error' && !!error?.includes('already open in another window')
 
   async function handleNext() {
     if (!selectedLabel || submittingAnswer) return

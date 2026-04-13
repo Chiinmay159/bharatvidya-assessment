@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
@@ -6,7 +6,16 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
   const [hh, setHh] = useState('--')
   const [mm, setMm] = useState('--')
   const [ss, setSs] = useState('--')
-  const [checking, setChecking] = useState(false)
+  const checkingRef = useRef(false)
+
+  const checkAndTransition = useCallback(async () => {
+    if (checkingRef.current) return
+    checkingRef.current = true
+    try {
+      const { data } = await supabase.from('batches').select('status').eq('id', batch.id).single()
+      if (data?.status === 'active') onExamStarted()
+    } finally { checkingRef.current = false }
+  }, [batch.id, onExamStarted])
 
   useEffect(() => {
     const startTime = new Date(batch.scheduled_start).getTime()
@@ -27,16 +36,7 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
     const timer = setInterval(tick, 1000)
     const poll  = setInterval(checkAndTransition, 10_000)
     return () => { clearInterval(timer); clearInterval(poll) }
-  }, [batch.id])
-
-  async function checkAndTransition() {
-    if (checking) return
-    setChecking(true)
-    try {
-      const { data } = await supabase.from('batches').select('status').eq('id', batch.id).single()
-      if (data?.status === 'active') onExamStarted()
-    } finally { setChecking(false) }
-  }
+  }, [batch.id, batch.scheduled_start, checkAndTransition])
 
   const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
 

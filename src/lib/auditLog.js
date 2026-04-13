@@ -17,7 +17,7 @@ export async function logAuditEvent({ action, entity, entityId, details }) {
       actor,
       details: details ?? null,
     })
-  } catch (_) {
+  } catch {
     // Audit failures must never block the main action
   }
 }
