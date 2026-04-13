@@ -10,13 +10,16 @@
 --   3. lock_active_batch_edits   (2026-04-13) — protect_active_batch trigger
 --   4. tighten_rls_and_grants    (2026-04-13) — scope anon attempts, require
 --      student_name in get_my_attempt, explicit execute grants on all RPCs
+--   5. security_review_fixes     (2026-04-13) — close answer-key leak,
+--      attempt enumeration, response injection, access-code enforcement,
+--      unique constraints, tab-switch UPDATE, ownership on get_my_responses
 --
--- Minimum frontend version: commit ed4458b or later
+-- Minimum frontend version: commit after 005 migration
 -- ================================================================
 
 
 -- ================================================================
--- 0. Helper: is_admin()
+-- 0. Helpers
 -- ================================================================
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
@@ -29,6 +32,21 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+
+-- Used by RLS policies so they don't depend on anon SELECT on attempts
+CREATE OR REPLACE FUNCTION public.attempt_is_open(p_attempt_id uuid)
+RETURNS boolean
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.attempts a
+    JOIN public.batches b ON b.id = a.batch_id
+    WHERE a.id = p_attempt_id
+      AND a.submitted_at IS NULL
+      AND b.status = 'active'
+  )
+$$;
+REVOKE ALL ON FUNCTION public.attempt_is_open(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.attempt_is_open(uuid) TO anon, authenticated;
 
 
 -- ================================================================
@@ -75,7 +93,8 @@ CREATE TABLE IF NOT EXISTS public.attempts (
   score           int,
   total_questions int,
   email           text,
-  session_token   uuid
+  session_token   uuid,
+  CONSTRAINT attempts_batch_roll_unique UNIQUE (batch_id, roll_number)
 );
 ALTER TABLE public.attempts ENABLE ROW LEVEL SECURITY;
 
@@ -85,7 +104,8 @@ CREATE TABLE IF NOT EXISTS public.responses (
   attempt_id      uuid NOT NULL REFERENCES public.attempts(id),
   question_id     uuid NOT NULL REFERENCES public.questions(id),
   selected_answer text NOT NULL CHECK (selected_answer IN ('A','B','C','D')),
-  is_correct      boolean NOT NULL
+  is_correct      boolean NOT NULL,
+  CONSTRAINT responses_attempt_question_unique UNIQUE (attempt_id, question_id)
 );
 ALTER TABLE public.responses ENABLE ROW LEVEL SECURITY;
 
@@ -139,14 +159,7 @@ CREATE POLICY batches_update_admin ON public.batches
 CREATE POLICY batches_delete_admin ON public.batches
   FOR DELETE TO authenticated USING (is_admin());
 
--- 2.2 Questions
-CREATE POLICY questions_select_active ON public.questions
-  FOR SELECT TO anon, authenticated
-  USING (EXISTS (SELECT 1 FROM batches WHERE batches.id = questions.batch_id AND batches.status = 'active'));
-CREATE POLICY questions_select_active_anon ON public.questions
-  FOR SELECT TO anon
-  USING (EXISTS (SELECT 1 FROM batches WHERE batches.id = questions.batch_id AND batches.status = 'active'));
-
+-- 2.2 Questions — NO anon SELECT (use get_exam_questions RPC)
 CREATE POLICY questions_select_admin ON public.questions
   FOR SELECT TO authenticated USING (is_admin());
 CREATE POLICY questions_insert_admin ON public.questions
@@ -156,14 +169,7 @@ CREATE POLICY questions_update_admin ON public.questions
 CREATE POLICY questions_delete_admin ON public.questions
   FOR DELETE TO authenticated USING (is_admin());
 
--- 2.3 Attempts
-CREATE POLICY attempts_select_anon ON public.attempts
-  FOR SELECT TO anon
-  USING (EXISTS (SELECT 1 FROM batches b WHERE b.id = attempts.batch_id AND b.status IN ('active','completed')));
-CREATE POLICY attempts_insert_active_batch ON public.attempts
-  FOR INSERT TO anon
-  WITH CHECK (EXISTS (SELECT 1 FROM batches b WHERE b.id = attempts.batch_id AND b.status = 'active'));
-
+-- 2.3 Attempts — NO anon SELECT/INSERT (use create_attempt / get_my_attempt RPCs)
 CREATE POLICY attempts_select_admin ON public.attempts
   FOR SELECT TO authenticated USING (is_admin());
 CREATE POLICY attempts_update_admin ON public.attempts
@@ -171,16 +177,14 @@ CREATE POLICY attempts_update_admin ON public.attempts
 CREATE POLICY attempts_delete_admin ON public.attempts
   FOR DELETE TO authenticated USING (is_admin());
 
--- 2.4 Responses
-CREATE POLICY responses_insert_active ON public.responses
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+-- 2.4 Responses — anon INSERT scoped to open attempts
 CREATE POLICY responses_insert_anon ON public.responses
   FOR INSERT TO anon
-  WITH CHECK (EXISTS (SELECT 1 FROM attempts a WHERE a.id = responses.attempt_id AND a.submitted_at IS NULL));
+  WITH CHECK (public.attempt_is_open(attempt_id));
 CREATE POLICY responses_select_admin ON public.responses
   FOR SELECT TO authenticated USING (is_admin());
 
--- 2.5 Roster (NO anon SELECT — use verify_roster_entry RPC instead)
+-- 2.5 Roster (NO anon access — use verify_roster_entry / check_roster_access RPCs)
 CREATE POLICY roster_admin_select ON public.roster
   FOR SELECT TO authenticated USING (is_admin());
 CREATE POLICY roster_admin_insert ON public.roster
@@ -196,13 +200,17 @@ CREATE POLICY audit_log_admin_select ON public.audit_log
 CREATE POLICY audit_log_admin_insert ON public.audit_log
   FOR INSERT TO authenticated WITH CHECK (is_admin());
 
--- 2.7 Tab switches
+-- 2.7 Tab switches — scoped via attempt_is_open helper
 CREATE POLICY tab_switches_anon_insert ON public.tab_switches
   FOR INSERT TO anon
-  WITH CHECK (EXISTS (SELECT 1 FROM attempts a WHERE a.id = tab_switches.attempt_id AND a.submitted_at IS NULL));
+  WITH CHECK (public.attempt_is_open(attempt_id));
 CREATE POLICY tab_switches_anon_select ON public.tab_switches
   FOR SELECT TO anon
-  USING (EXISTS (SELECT 1 FROM attempts a WHERE a.id = tab_switches.attempt_id AND a.submitted_at IS NULL));
+  USING (public.attempt_is_open(attempt_id));
+CREATE POLICY tab_switches_anon_update ON public.tab_switches
+  FOR UPDATE TO anon
+  USING  (public.attempt_is_open(attempt_id))
+  WITH CHECK (public.attempt_is_open(attempt_id));
 CREATE POLICY tab_switches_admin_read ON public.tab_switches
   FOR SELECT TO authenticated USING (is_admin());
 
@@ -335,18 +343,24 @@ $$;
 REVOKE ALL ON FUNCTION public.get_my_attempt(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_attempt(uuid, text, text) TO anon, authenticated;
 
--- 4.4 Get student's saved responses (for refresh recovery)
-CREATE OR REPLACE FUNCTION public.get_my_responses(p_attempt_id uuid)
+-- 4.4 Get student's saved responses (ownership verified)
+CREATE OR REPLACE FUNCTION public.get_my_responses(
+  p_attempt_id   uuid,
+  p_roll_number  text,
+  p_student_name text
+)
 RETURNS TABLE (question_id uuid, selected_answer text)
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT r.question_id, r.selected_answer
   FROM public.responses r
   JOIN public.attempts a ON a.id = r.attempt_id
-  WHERE r.attempt_id = p_attempt_id
+  WHERE r.attempt_id   = p_attempt_id
+    AND a.roll_number   = p_roll_number
+    AND a.student_name  = p_student_name
     AND a.submitted_at IS NULL
 $$;
-REVOKE ALL ON FUNCTION public.get_my_responses(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_my_responses(uuid) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_my_responses(uuid, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_my_responses(uuid, text, text) TO anon, authenticated;
 
 -- 4.5 Submit exam (server-side scoring)
 CREATE OR REPLACE FUNCTION public.submit_exam(p_attempt_id uuid)
@@ -392,7 +406,63 @@ $$;
 REVOKE ALL ON FUNCTION public.submit_exam(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.submit_exam(uuid) TO anon, authenticated;
 
--- 4.6 Replace questions (admin-only bulk upload)
+-- 4.6 Create attempt (server-side, with access-code enforcement)
+CREATE OR REPLACE FUNCTION public.create_attempt(
+  p_batch_id     uuid,
+  p_roll_number  text,
+  p_student_name text,
+  p_email        text DEFAULT NULL,
+  p_access_code  text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_id     uuid;
+  v_status text;
+  v_code   text;
+BEGIN
+  SELECT status, access_code INTO v_status, v_code
+  FROM public.batches WHERE id = p_batch_id;
+
+  IF v_status IS NULL THEN RAISE EXCEPTION 'Batch not found'; END IF;
+  IF v_status != 'active' THEN RAISE EXCEPTION 'Batch is not active'; END IF;
+
+  IF v_code IS NOT NULL AND v_code != '' THEN
+    IF p_access_code IS NULL OR upper(p_access_code) != upper(v_code) THEN
+      RAISE EXCEPTION 'Invalid access code';
+    END IF;
+  END IF;
+
+  INSERT INTO public.attempts (batch_id, roll_number, student_name, email)
+  VALUES (p_batch_id, p_roll_number, p_student_name, p_email)
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.create_attempt(uuid, text, text, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_attempt(uuid, text, text, text, text) TO anon, authenticated;
+
+-- 4.7 Verify access code (anon-safe — never exposes the actual code)
+CREATE OR REPLACE FUNCTION public.verify_access_code(
+  p_batch_id    uuid,
+  p_access_code text
+)
+RETURNS TABLE (required boolean, valid boolean)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    (b.access_code IS NOT NULL AND b.access_code != '') AS required,
+    (b.access_code IS NOT NULL AND b.access_code != ''
+     AND upper(b.access_code) = upper(p_access_code))   AS valid
+  FROM public.batches b
+  WHERE b.id = p_batch_id
+    AND b.status IN ('scheduled', 'active')
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.verify_access_code(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verify_access_code(uuid, text) TO anon, authenticated;
+
+-- 4.8 Replace questions (admin-only bulk upload)
 CREATE OR REPLACE FUNCTION public.replace_questions(p_batch_id uuid, p_questions jsonb)
 RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -426,7 +496,7 @@ $$;
 REVOKE ALL ON FUNCTION public.replace_questions(uuid, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.replace_questions(uuid, jsonb) TO authenticated;
 
--- 4.7 Replace roster (admin-only, guarded)
+-- 4.9 Replace roster (admin-only, guarded)
 CREATE OR REPLACE FUNCTION public.replace_roster(p_batch_id uuid, p_rows jsonb)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -443,7 +513,7 @@ $$;
 REVOKE ALL ON FUNCTION public.replace_roster(uuid, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.replace_roster(uuid, jsonb) TO authenticated;
 
--- 4.8 Verify roster entry (anon-safe — returns only the caller's own row)
+-- 4.10 Verify roster entry (anon-safe — returns only the caller's own row)
 CREATE OR REPLACE FUNCTION public.verify_roster_entry(p_batch_id uuid, p_roll_number text)
 RETURNS TABLE (student_name text, email text)
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
@@ -458,7 +528,7 @@ $$;
 REVOKE ALL ON FUNCTION public.verify_roster_entry(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.verify_roster_entry(uuid, text) TO anon, authenticated;
 
--- 4.9 Check roster access for batch filtering (anon-safe — no PII exposed)
+-- 4.11 Check roster access for batch filtering (anon-safe — no PII exposed)
 CREATE OR REPLACE FUNCTION public.check_roster_access(p_batch_ids uuid[], p_roll_number text DEFAULT NULL)
 RETURNS TABLE (batch_id uuid, has_roster boolean, student_in_roster boolean)
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$

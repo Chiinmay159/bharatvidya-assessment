@@ -67,13 +67,35 @@ export function parseQuestionsCsv(file) {
 }
 
 /**
+ * Sanitize a cell value to prevent spreadsheet formula injection.
+ * Values starting with =, +, -, @, \t, or \r are prefixed with a
+ * single-quote so they are treated as text in Excel/Sheets.
+ */
+const FORMULA_RE = /^[=+\-@\t\r]/
+
+function sanitizeCell(value) {
+  if (typeof value === 'string' && FORMULA_RE.test(value)) {
+    return "'" + value
+  }
+  return value
+}
+
+/**
  * Generate a CSV string for download.
+ * All cell values are sanitized against formula injection.
  * @param {Array<Object>} rows
  * @param {string[]} fields — ordered column names
  * @returns {string}
  */
 export function generateCsv(rows, fields) {
-  return Papa.unparse({ fields, data: rows })
+  const sanitized = rows.map(row => {
+    const clean = {}
+    for (const [k, v] of Object.entries(row)) {
+      clean[k] = sanitizeCell(v)
+    }
+    return clean
+  })
+  return Papa.unparse({ fields, data: sanitized })
 }
 
 /**

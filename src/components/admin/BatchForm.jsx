@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { format } from 'date-fns'
+import { fromZonedTime } from 'date-fns-tz'
+import { Field } from '../shared/Field'
 
 export function BatchForm({ batch, onSaved, onCancel }) {
   const isEditing = !!batch
@@ -23,7 +25,7 @@ export function BatchForm({ batch, onSaved, onCancel }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
-    const start = new Date(`${form.scheduled_date}T${form.scheduled_time}`)
+    const start = fromZonedTime(`${form.scheduled_date}T${form.scheduled_time}`, 'Asia/Kolkata')
     if (isNaN(start.getTime())) { setError('Invalid date or time.'); return }
     const dur = parseInt(form.duration_minutes)
     if (!dur || dur <= 0) { setError('Duration must be a positive number.'); return }
@@ -141,17 +143,6 @@ export function BatchForm({ batch, onSaved, onCancel }) {
   )
 }
 
-function Field({ label, required, hint, children }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)' }}>
-        {label}{required && <span style={{ color: 'var(--error)', marginLeft: 2 }}>*</span>}
-      </label>
-      {children}
-      {hint && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>{hint}</p>}
-    </div>
-  )
-}
 
 const inputStyle = {
   width: '100%', padding: '9px 13px',

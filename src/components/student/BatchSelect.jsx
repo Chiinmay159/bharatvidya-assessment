@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
+import { Spinner } from '../shared/Spinner'
 
 export function BatchSelect({ onSelectBatch }) {
   const [batches,    setBatches]    = useState([])
@@ -15,7 +16,10 @@ export function BatchSelect({ onSelectBatch }) {
     async function fetchBatches() {
       const { data, error } = await supabase
         .from('batches')
-        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, access_code')
+        // NOTE: access_code intentionally excluded — never expose raw codes to client
+        // TODO: add a `has_access_code` generated column or database view to restore
+        //       the "Access code required" badge without leaking the actual code value
+        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student')
         .in('status', ['scheduled', 'active'])
         .order('scheduled_start', { ascending: true })
 
@@ -73,7 +77,7 @@ export function BatchSelect({ onSelectBatch }) {
               BharatVidya Exams
             </span>
           </div>
-          <h1 style={{ margin: '0 0 8px', fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-.6px', lineHeight: 1.15 }}>
+          <h1 className="hero-title" style={{ margin: '0 0 8px', fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-.6px', lineHeight: 1.15 }}>
             Select your exam
           </h1>
           <p style={{ margin: 0, color: 'rgba(255,255,255,.58)', fontSize: 15, lineHeight: 1.55 }}>
@@ -83,7 +87,7 @@ export function BatchSelect({ onSelectBatch }) {
       </div>
 
       {/* ── Body ──────────────────────────────────────────── */}
-      <main style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', padding: '0 20px 60px' }}>
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', padding: '0 20px 60px', outline: 'none' }}>
 
         {/* Filter card — overlaps hero */}
         <div className="card" style={{ marginTop: -28, padding: '18px 20px', marginBottom: 24, boxShadow: 'var(--shadow-md)' }}>
@@ -167,7 +171,7 @@ export function BatchSelect({ onSelectBatch }) {
               const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
 
               return (
-                <button key={batch.id} className="batch-card" onClick={() => onSelectBatch(batch)}>
+                <button key={batch.id} className="batch-card" aria-label={`Select exam: ${batch.name}`} onClick={() => onSelectBatch(batch)}>
                   <div style={{ display: 'flex', alignItems: 'stretch' }}>
                     {/* Left accent stripe */}
                     <div style={{
@@ -176,7 +180,7 @@ export function BatchSelect({ onSelectBatch }) {
                       borderRadius: '11px 0 0 11px',
                     }} />
 
-                    <div style={{ flex: 1, padding: '18px 20px 16px' }}>
+                    <div className="batch-card-inner" style={{ flex: 1, padding: '18px 20px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-1)', marginBottom: 5, letterSpacing: '-.15px' }}>
@@ -190,11 +194,8 @@ export function BatchSelect({ onSelectBatch }) {
                               <><Dot /><span>{batch.questions_per_student} questions</span></>
                             )}
                           </div>
-                          {batch.access_code && (
-                            <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--warn)', background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-pill)', padding: '2px 8px' }}>
-                              <LockIcon /> Access code required
-                            </div>
-                          )}
+                          {/* TODO: restore "Access code required" badge once has_access_code
+                                   column or view is available (see BatchSelect fetch TODO) */}
                         </div>
                         <LiveBadge live={isLive} />
                       </div>
@@ -235,12 +236,12 @@ function LiveBadge({ live }) {
 }
 
 function Dot() {
-  return <span style={{ color: 'var(--border-md)', fontSize: 10, lineHeight: 1 }}>●</span>
+  return <span aria-hidden="true" style={{ color: 'var(--border-md)', fontSize: 10, lineHeight: 1 }}>●</span>
 }
 
 function SearchIcon() {
   return (
-    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" strokeLinecap="round" />
     </svg>
   )
@@ -248,7 +249,7 @@ function SearchIcon() {
 
 function LockIcon() {
   return (
-    <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg role="img" aria-label="Locked" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
       <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" />
     </svg>
@@ -257,17 +258,10 @@ function LockIcon() {
 
 function InboxIcon() {
   return (
-    <svg width="26" height="26" fill="none" stroke="var(--text-3)" strokeWidth="1.5" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="26" height="26" fill="none" stroke="var(--text-3)" strokeWidth="1.5" viewBox="0 0 24 24">
       <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
       <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
-function Spinner({ size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="u-spin" style={{ display: 'block' }}>
-      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="31" strokeDashoffset="10" />
-    </svg>
-  )
-}

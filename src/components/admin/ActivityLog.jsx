@@ -51,7 +51,8 @@ export function ActivityLog({ onBack }) {
       }
       const { data } = await query
       if (!cancelled) {
-        setEvents(data || [])
+        // Append on pagination, replace on filter change (page resets to 0)
+        setEvents(prev => page === 0 ? (data || []) : [...prev, ...(data || [])])
         setLoading(false)
       }
     }
@@ -104,10 +105,11 @@ export function ActivityLog({ onBack }) {
       {!loading && events.length > 0 && (
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <caption className="sr-only">Admin activity log</caption>
             <thead>
               <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                 {['Time', 'Action', 'Actor', 'Details'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12 }}>{h}</th>
+                  <th key={h} scope="col" style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12 }}>{h}</th>
                 ))}
               </tr>
             </thead>

@@ -8,6 +8,10 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
   const [ss, setSs] = useState('--')
   const checkingRef = useRef(false)
 
+  // Server time sync — same monotonic pattern as useTimer
+  const baselinePerfRef = useRef(null)
+  const baselineServerMsRef = useRef(null)
+
   const checkAndTransition = useCallback(async () => {
     if (checkingRef.current) return
     checkingRef.current = true
@@ -17,11 +21,42 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
     } finally { checkingRef.current = false }
   }, [batch.id, onExamStarted])
 
+  // Fetch server time once and establish monotonic baseline
+  useEffect(() => {
+    let cancelled = false
+    async function syncServerTime() {
+      try {
+        const t1 = performance.now()
+        const { data, error } = await supabase.rpc('get_server_time')
+        const t2 = performance.now()
+        if (cancelled) return
+        if (error || !data) throw new Error('Server time unavailable')
+        const rtt = t2 - t1
+        const serverMs = new Date(data).getTime()
+        const estimatedServerNow = serverMs + rtt / 2
+        baselinePerfRef.current = t2
+        baselineServerMsRef.current = estimatedServerNow
+      } catch {
+        if (!cancelled) {
+          // Fallback: use wall clock
+          baselinePerfRef.current = performance.now()
+          baselineServerMsRef.current = Date.now()
+        }
+      }
+    }
+    syncServerTime()
+    return () => { cancelled = true }
+  }, [])
+
   useEffect(() => {
     const startTime = new Date(batch.scheduled_start).getTime()
 
     const tick = () => {
-      const diff = startTime - Date.now()
+      // Use monotonic server-synced time if available, else wall clock
+      const now = baselinePerfRef.current != null
+        ? baselineServerMsRef.current + (performance.now() - baselinePerfRef.current)
+        : Date.now()
+      const diff = startTime - now
       if (diff <= 0) {
         setHh('00'); setMm('00'); setSs('00')
         checkAndTransition()
@@ -133,7 +168,7 @@ function Colon() {
 
 function ClockIcon() {
   return (
-    <svg width="26" height="26" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="26" height="26" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
     </svg>

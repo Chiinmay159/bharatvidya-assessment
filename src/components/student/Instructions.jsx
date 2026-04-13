@@ -21,7 +21,7 @@ export function Instructions({ batch, rollNumber, onBegin }) {
       </header>
 
       {/* Body */}
-      <main style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '36px 20px 60px' }}>
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '36px 20px 60px', outline: 'none' }}>
         <div style={{ width: '100%', maxWidth: 560 }}>
 
           {/* Exam identity banner */}
@@ -87,14 +87,15 @@ export function Instructions({ batch, rollNumber, onBegin }) {
                 transition: 'all .15s ease',
               }}>
                 {agreed && (
-                  <svg width="11" height="11" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" width="11" height="11" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
                     <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
               </div>
               <input
                 type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
-                style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                aria-label="I have read and understood all the instructions above"
+                style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
               />
               <span style={{ fontSize: 14, color: agreed ? 'var(--accent-deep)' : 'var(--text-1)', fontWeight: 500, lineHeight: 1.45 }}>
                 I have read and understood all the instructions above.
@@ -125,7 +126,7 @@ export function Instructions({ batch, rollNumber, onBegin }) {
 /* ── Rule icons ──────────────────────────────────────────── */
 function OneWayIcon() {
   return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
       <polyline points="12 5 19 12 12 19" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -134,7 +135,7 @@ function OneWayIcon() {
 
 function TimerIcon() {
   return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -143,7 +144,7 @@ function TimerIcon() {
 
 function EyeIcon() {
   return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -152,7 +153,7 @@ function EyeIcon() {
 
 function WifiIcon() {
   return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M5 12.55a11 11 0 0 1 14.08 0" strokeLinecap="round" />
       <path d="M1.42 9a16 16 0 0 1 21.16 0" strokeLinecap="round" />
       <path d="M8.53 16.11a6 6 0 0 1 6.95 0" strokeLinecap="round" />
@@ -163,7 +164,7 @@ function WifiIcon() {
 
 function RefreshOffIcon() {
   return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
       <path d="M21 2v6h-6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M3 12a9 9 0 0 0 15 6.7" strokeLinecap="round" />

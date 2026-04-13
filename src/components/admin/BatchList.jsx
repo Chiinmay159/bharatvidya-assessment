@@ -161,10 +161,11 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
         <div className="card" style={{ overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <caption className="sr-only">All exam batches</caption>
               <thead>
                 <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                   {['Name', 'Scheduled (IST)', 'Duration', 'Status', 'Questions', 'Roster', 'Submissions', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)', whiteSpace: 'nowrap', fontSize: 11, letterSpacing: '.05em', textTransform: 'uppercase' }}>
+                    <th key={h} scope="col" style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)', whiteSpace: 'nowrap', fontSize: 11, letterSpacing: '.05em', textTransform: 'uppercase' }}>
                       {h}
                     </th>
                   ))}

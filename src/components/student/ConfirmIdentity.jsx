@@ -1,4 +1,5 @@
 import { formatInTimeZone } from 'date-fns-tz'
+import { BackButton } from '../shared/BackButton'
 
 export function ConfirmIdentity({ batch, student, onConfirm, onBack }) {
   const dateStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'dd MMM yyyy')
@@ -9,13 +10,11 @@ export function ConfirmIdentity({ batch, student, onConfirm, onBack }) {
 
       {/* Header */}
       <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '14px 24px' }}>
-        <button onClick={onBack} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-2)', fontSize: 14, fontWeight: 500 }}>
-          <ArrowLeft /> Back
-        </button>
+        <BackButton onClick={onBack} />
       </header>
 
       {/* Body */}
-      <main style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 60px' }}>
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 60px', outline: 'none' }}>
         <div className="u-slide-up" style={{ width: '100%', maxWidth: 420 }}>
 
           {/* Title block */}
@@ -98,7 +97,7 @@ function InfoRow({ label, value, mono }) {
 
 function UserCheckIcon() {
   return (
-    <svg width="24" height="24" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="12" cy="7" r="4" />
       <polyline points="16 11 18 13 22 9" strokeLinecap="round" strokeLinejoin="round" />
@@ -106,10 +105,3 @@ function UserCheckIcon() {
   )
 }
 
-function ArrowLeft() {
-  return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5m0 0l7-7m-7 7l7 7" />
-    </svg>
-  )
-}

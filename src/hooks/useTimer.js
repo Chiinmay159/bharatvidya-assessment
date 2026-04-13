@@ -19,7 +19,11 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
   const [remainingMs, setRemainingMs] = useState(null)
   const [syncStatus, setSyncStatus] = useState('syncing') // 'syncing' | 'synced' | 'fallback'
 
-  const offsetRef = useRef(0)
+  // Monotonic timer: immune to client clock changes.
+  // After server sync, we record a performance.now() baseline and derived server ms.
+  // On each tick: serverNow = baselineServerMs + (performance.now() - baselinePerf)
+  const baselinePerfRef = useRef(0)
+  const baselineServerMsRef = useRef(0)
   const examEndTimeRef = useRef(null)
   const hasTriggeredRef = useRef(false)
   const onTimeUpRef = useRef(onTimeUp)
@@ -36,7 +40,8 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
     examEndTimeRef.current = startMs + durationMinutes * 60 * 1000
   }, [scheduledStart, durationMinutes])
 
-  // Fetch server time and compute offset (half-RTT compensation)
+  // Fetch server time once and establish a monotonic baseline.
+  // All subsequent ticks derive from performance.now() — immune to clock changes.
   useEffect(() => {
     if (!enabled) return
     let cancelled = false
@@ -52,11 +57,15 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
         const serverMs = new Date(data).getTime()
         // Server captured time at ~t1 + rtt/2
         const estimatedServerNow = serverMs + rtt / 2
-        offsetRef.current = estimatedServerNow - Date.now()
+        // Record monotonic baseline
+        baselinePerfRef.current = t2
+        baselineServerMsRef.current = estimatedServerNow
         setSyncStatus('synced')
       } catch {
         if (!cancelled) {
-          offsetRef.current = 0
+          // Fallback: use wall clock
+          baselinePerfRef.current = performance.now()
+          baselineServerMsRef.current = Date.now()
           setSyncStatus('fallback')
         }
       }
@@ -72,7 +81,8 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
 
     const tick = () => {
       if (!examEndTimeRef.current) return
-      const serverNow = Date.now() + offsetRef.current
+      // Derive server time from monotonic clock — immune to wall-clock changes
+      const serverNow = baselineServerMsRef.current + (performance.now() - baselinePerfRef.current)
       const remaining = examEndTimeRef.current - serverNow
       const clamped = Math.max(0, remaining)
       setRemainingMs(clamped)

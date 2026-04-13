@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { selectAndShuffleQuestions } from '../lib/seed'
 import { formatDbError } from '../lib/errors'
@@ -10,9 +10,13 @@ import { formatDbError } from '../lib/errors'
  * - Questions fetched via get_exam_questions RPC (correct_answer stripped server-side)
  * - is_correct set by a BEFORE INSERT trigger on responses (not client-computed)
  * - Submission via submit_exam RPC (server-side scoring)
- * - get_my_attempt passes student name for ownership verification
+ * - Attempt creation via create_attempt RPC (server-side access-code enforcement)
+ * - get_my_attempt requires student name for ownership verification
+ * - get_my_responses requires roll_number + student_name for ownership
+ * - UNIQUE(attempt_id, question_id) on responses prevents score tampering
+ * - UNIQUE(batch_id, roll_number) on attempts prevents duplicate attempts
  */
-export function useExamState({ batch, rollNumber, studentName, email }) {
+export function useExamState({ batch, rollNumber, studentName, email, accessCode }) {
   const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'submitted' | 'error'
   const [attemptId,    setAttemptId]    = useState(null)
   const [questions,    setQuestions]    = useState([])
@@ -20,6 +24,8 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
   const [answeredMap,  setAnsweredMap]  = useState({})
   const [result,       setResult]       = useState(null)
   const [error,        setError]        = useState(null)
+  const [pendingCount, setPendingCount] = useState(0)
+  const failedQueueRef = useRef([]) // { questionId, originalLabel, attemptId }
 
   const batchId = batch?.id
 
@@ -53,25 +59,24 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
         }
         currentAttemptId = attempt.id
       } else {
-        // Create new attempt
-        const { data: newAttempt, error: insertError } = await supabase
-          .from('attempts')
-          .insert({
-            batch_id: batchId,
-            roll_number: rollNumber,
-            student_name: studentName,
-            email: email || null,
+        // Create new attempt via server-side RPC (enforces access code + unique constraint)
+        const { data: newAttemptId, error: insertError } = await supabase
+          .rpc('create_attempt', {
+            p_batch_id:     batchId,
+            p_roll_number:  rollNumber,
+            p_student_name: studentName,
+            p_email:        email || null,
+            p_access_code:  accessCode || null,
           })
-          .select('id')
-          .single()
 
         if (insertError) {
-          if (insertError.code === '23505') {
+          // Handle unique constraint violation (race condition)
+          if (insertError.code === '23505' || insertError.message?.includes('already been registered')) {
             throw new Error('This roll number has already been registered for this exam.')
           }
           throw insertError
         }
-        currentAttemptId = newAttempt.id
+        currentAttemptId = newAttemptId
       }
 
       setAttemptId(currentAttemptId)
@@ -91,10 +96,12 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
       )
       setQuestions(shuffled)
 
-      // 4. Recover previous answers on refresh
+      // 4. Recover previous answers on refresh (ownership-verified)
       if (existing && existing.length > 0) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
-          p_attempt_id: currentAttemptId,
+          p_attempt_id:   currentAttemptId,
+          p_roll_number:  rollNumber,
+          p_student_name: studentName,
         })
         if (prevResponses?.length > 0) {
           const map = {}
@@ -111,17 +118,52 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
       setError(formatDbError(err, 'Failed to start exam. Please try again.'))
       setStatus('error')
     }
-  }, [batch, batchId, rollNumber, studentName, email])
+  }, [batch, batchId, rollNumber, studentName, email, accessCode])
 
   useEffect(() => {
     if (!batch || !rollNumber || !studentName) return
     initExam()
-  }, [batch, rollNumber, studentName, email, initExam])
+  }, [batch, rollNumber, studentName, email, accessCode, initExam])
+
+  /** Drain the failed queue before final submission. */
+  const drainFailedQueue = useCallback(async () => {
+    const queue = [...failedQueueRef.current]
+    if (queue.length === 0) return
+    const remaining = []
+    for (const item of queue) {
+      try {
+        const { error } = await supabase.from('responses').insert({
+          attempt_id:      item.attemptId,
+          question_id:     item.questionId,
+          selected_answer: item.originalLabel,
+          is_correct:      false, // overwritten server-side
+        })
+        // 23505 = unique violation → answer already saved (first attempt succeeded)
+        if (error && error.code !== '23505') remaining.push(item)
+      } catch {
+        remaining.push(item)
+      }
+    }
+    failedQueueRef.current = remaining
+    setPendingCount(remaining.length)
+  }, [])
 
   const finalizeSubmission = useCallback(async () => {
     if (!attemptId) return
     setStatus('submitting')
     try {
+      // Drain any queued failed responses before scoring — try twice
+      await drainFailedQueue()
+      if (failedQueueRef.current.length > 0) {
+        await sleep(1000)
+        await drainFailedQueue()
+      }
+
+      const unsaved = failedQueueRef.current.length
+      if (unsaved > 0) {
+        console.warn(`Submitting with ${unsaved} unsaved answer(s)`)
+      }
+
       const { data, error } = await supabase.rpc('submit_exam', { p_attempt_id: attemptId })
       if (error) throw error
       const { score, total_questions: total } = data[0]
@@ -133,7 +175,7 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
       setStatus('error')
       setError(formatDbError(err, 'Submission failed. Please contact the invigilator.'))
     }
-  }, [attemptId])
+  }, [attemptId, drainFailedQueue])
 
   /**
    * Submit a single response and advance.
@@ -151,6 +193,8 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
       for (let attempt = 0; attempt < retries; attempt++) {
         const { error } = await supabase.from('responses').insert(payload)
         if (!error) return
+        // 23505 = unique violation → answer already saved (idempotent)
+        if (error.code === '23505') return
         if (attempt < retries - 1) await sleep(500 * Math.pow(2, attempt))
         else throw error
       }
@@ -164,8 +208,10 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
         is_correct:      false,  // overwritten server-side by trigger
       })
     } catch (err) {
-      console.error('Failed to save response:', err)
-      // Non-fatal: continue exam
+      console.error('Failed to save response after retries, queuing:', err)
+      // Push to offline queue for retry before final submission
+      failedQueueRef.current.push({ questionId: question.questionId, originalLabel, attemptId })
+      setPendingCount(failedQueueRef.current.length)
     }
 
     if (isFinal) {
@@ -195,6 +241,7 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
     answeredMap,
     result,
     error,
+    pendingCount,
     submitAnswer,
     autoSubmit,
   }

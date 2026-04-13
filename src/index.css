@@ -1,11 +1,8 @@
-/* ── Inter font ──────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 @import "tailwindcss";
 
 /* ── Design tokens ───────────────────────────────────────── */
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
 
   /* Surfaces */
@@ -21,7 +18,7 @@
   /* Text */
   --text-1:        #0F172A;
   --text-2:        #475569;
-  --text-3:        #94A3B8;
+  --text-3:        #64748B;
 
   /* Accent — indigo */
   --accent:        #4F46E5;
@@ -355,4 +352,74 @@ body {
   justify-content: center;
   padding: 20px;
   backdrop-filter: blur(2px);
+}
+
+/* ── Screen-reader only (visually hidden) ───────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sr-only:focus-visible {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 8px 16px;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  z-index: 100;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .u-fade-in,
+  .u-slide-up,
+  .u-breathe,
+  .u-pulse-dot,
+  .u-timer-urgent,
+  .u-score-reveal { animation: none !important; }
+
+  .batch-card,
+  .option-card,
+  .form-input,
+  .btn,
+  .nav-tab { transition: none !important; }
+}
+
+/* ── Mobile responsive (student flow) ───────────────────── */
+@media (max-width: 640px) {
+  /* Hero heading */
+  .hero-title { font-size: 24px !important; }
+
+  /* Batch card inner padding */
+  .batch-card-inner { padding: 14px 16px 12px !important; }
+
+  /* Prevent iOS zoom on input focus */
+  .form-input { font-size: 16px !important; }
+
+  /* Exam header stacks vertically on narrow screens */
+  .exam-header-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  .exam-header-timer {
+    align-items: flex-start !important;
+  }
+
+  /* Option card smaller padding */
+  .option-card { padding: 12px 14px !important; }
 }

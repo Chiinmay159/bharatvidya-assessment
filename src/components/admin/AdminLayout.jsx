@@ -1,6 +1,28 @@
+import { useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 
 export function AdminLayout({ user, children, navItems = [] }) {
+  const tabsRef = useRef(null)
+
+  const handleTabKeyDown = useCallback((e) => {
+    const tabs = tabsRef.current?.querySelectorAll('[role="tab"]')
+    if (!tabs?.length) return
+    const tabArr = Array.from(tabs)
+    const currentIdx = tabArr.findIndex(t => t === document.activeElement)
+    if (currentIdx === -1) return
+
+    let nextIdx = currentIdx
+    switch (e.key) {
+      case 'ArrowRight': nextIdx = (currentIdx + 1) % tabArr.length; break
+      case 'ArrowLeft':  nextIdx = (currentIdx - 1 + tabArr.length) % tabArr.length; break
+      case 'Home':       nextIdx = 0; break
+      case 'End':        nextIdx = tabArr.length - 1; break
+      default: return
+    }
+    e.preventDefault()
+    tabArr[nextIdx].focus()
+    tabArr[nextIdx].click()
+  }, [])
   async function handleSignOut() {
     await supabase.auth.signOut()
   }
@@ -32,16 +54,21 @@ export function AdminLayout({ user, children, navItems = [] }) {
 
         {/* Nav tabs */}
         {navItems.length > 0 && (
-          <nav style={{ display: 'flex', alignItems: 'stretch', paddingLeft: 4, flex: 1 }}>
-            {navItems.map(item => (
-              <button
-                key={item.label}
-                onClick={item.onClick}
-                className={`nav-tab${item.active ? ' is-active' : ''}`}
-              >
-                {item.label}
-              </button>
-            ))}
+          <nav aria-label="Admin navigation" style={{ display: 'flex', alignItems: 'stretch', paddingLeft: 4, flex: 1 }}>
+            <div ref={tabsRef} role="tablist" onKeyDown={handleTabKeyDown} style={{ display: 'flex', alignItems: 'stretch' }}>
+              {navItems.map(item => (
+                <button
+                  key={item.label}
+                  role="tab"
+                  aria-selected={item.active}
+                  tabIndex={item.active ? 0 : -1}
+                  onClick={item.onClick}
+                  className={`nav-tab${item.active ? ' is-active' : ''}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </nav>
         )}
 
@@ -71,7 +98,7 @@ export function AdminLayout({ user, children, navItems = [] }) {
       </header>
 
       {/* ── Page body ────────────────────────────────────── */}
-      <main style={{ flex: 1, maxWidth: 1100, width: '100%', margin: '0 auto', padding: '32px 24px' }}>
+      <main id="main-content" style={{ flex: 1, maxWidth: 1100, width: '100%', margin: '0 auto', padding: '32px 24px' }}>
         {children}
       </main>
     </div>

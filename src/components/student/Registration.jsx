@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 import { formatDbError } from '../../lib/errors'
+import { Spinner } from '../shared/Spinner'
+import { BackButton } from '../shared/BackButton'
+import { Field } from '../shared/Field'
 
 export function Registration({ batch, onRegistered, onBack }) {
   const [rollNumber,  setRollNumber]  = useState('')
@@ -13,7 +16,6 @@ export function Registration({ batch, onRegistered, onBack }) {
   const [lookingUp,   setLookingUp]   = useState(false)
   const [phase,       setPhase]       = useState('roll') // 'roll' | 'name' | 'ready'
 
-  const hasAccessCode = !!batch.access_code
   const dateStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'dd MMMM yyyy')
   const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
 
@@ -23,15 +25,31 @@ export function Registration({ batch, onRegistered, onBack }) {
     const roll = rollNumber.trim()
     if (!roll) { setError('Please enter your roll number.'); return }
 
-    if (hasAccessCode) {
-      if (!accessCode.trim()) { setError('Please enter the exam access code.'); return }
-      if (accessCode.trim().toUpperCase() !== batch.access_code.toUpperCase()) {
-        setError('Invalid access code. Please check and try again.')
+    setLookingUp(true)
+
+    // Always verify access code server-side (even when field is empty —
+    // the server tells us whether a code is required for this batch)
+    try {
+      const { data: codeCheck, error: codeErr } = await supabase.rpc('verify_access_code', {
+        p_batch_id: batch.id, p_access_code: accessCode.trim(),
+      })
+      if (codeErr) throw codeErr
+      const codeResult = codeCheck?.[0]
+      if (codeResult?.required && !codeResult?.valid) {
+        setError(
+          accessCode.trim()
+            ? 'Invalid access code. Please check and try again.'
+            : 'This exam requires an access code. Please enter the code provided by your instructor.'
+        )
+        setLookingUp(false)
         return
       }
+    } catch {
+      // If access-code verification fails, block entry rather than allowing bypass
+      setError('Could not verify access. Please check your connection and try again.')
+      setLookingUp(false)
+      return
     }
-
-    setLookingUp(true)
     try {
       // Use RPC to check roster access (no direct table read)
       const { data: rosterCheck } = await supabase.rpc('check_roster_access', {
@@ -66,7 +84,7 @@ export function Registration({ batch, onRegistered, onBack }) {
 
         setRosterEntry(student)
         setPhase('ready')
-        onRegistered({ rollNumber: roll, studentName: student?.student_name, email: student?.email })
+        onRegistered({ rollNumber: roll, studentName: student?.student_name, email: student?.email, accessCode: accessCode.trim() || null })
       } else {
         setRosterEntry(false)
         setPhase('name')
@@ -96,7 +114,7 @@ export function Registration({ batch, onRegistered, onBack }) {
         setSubmitting(false)
         return
       }
-      onRegistered({ rollNumber: roll, studentName: name, email: null })
+      onRegistered({ rollNumber: roll, studentName: name, email: null, accessCode: accessCode.trim() || null })
     } catch (err) {
       setError(formatDbError(err, 'Could not verify your details. Please try again.'))
     } finally {
@@ -109,13 +127,11 @@ export function Registration({ batch, onRegistered, onBack }) {
 
       {/* ── Header ────────────────────────────────────────── */}
       <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={onBack} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-2)', fontSize: 14, fontWeight: 500, padding: '4px 0' }}>
-          <ArrowLeft /> Back
-        </button>
+        <BackButton onClick={onBack} />
       </header>
 
       {/* ── Body ──────────────────────────────────────────── */}
-      <main style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 60px' }}>
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 60px', outline: 'none' }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
 
           {/* Batch info pill */}
@@ -151,17 +167,15 @@ export function Registration({ batch, onRegistered, onBack }) {
                   />
                 </Field>
 
-                {hasAccessCode && (
-                  <Field label="Access Code" required hint="Provided by your instructor">
-                    <input
-                      type="text" value={accessCode}
-                      onChange={e => setAccessCode(e.target.value.toUpperCase())}
-                      required placeholder="4–6 character code"
-                      className="form-input"
-                      style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.08em', fontSize: 16 }}
-                    />
-                  </Field>
-                )}
+                <Field label="Access Code" hint="Enter if provided by your instructor">
+                  <input
+                    type="text" value={accessCode}
+                    onChange={e => setAccessCode(e.target.value.toUpperCase())}
+                    placeholder="4–6 character code (optional)"
+                    className="form-input"
+                    style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.08em', fontSize: 16 }}
+                  />
+                </Field>
 
                 {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -233,20 +247,6 @@ function StepDot({ n, active, done }) {
   )
 }
 
-function Field({ label, required, hint, children }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>
-          {label}{required && <span style={{ color: 'var(--error)', marginLeft: 2 }}>*</span>}
-        </label>
-        {hint && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{hint}</span>}
-      </div>
-      {children}
-    </div>
-  )
-}
-
 function ErrorBanner({ children }) {
   return (
     <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--error)', fontSize: 13, lineHeight: 1.5 }}>
@@ -255,18 +255,3 @@ function ErrorBanner({ children }) {
   )
 }
 
-function ArrowLeft() {
-  return (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5m0 0l7-7m-7 7l7 7" />
-    </svg>
-  )
-}
-
-function Spinner({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="u-spin" style={{ display: 'block' }}>
-      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="31" strokeDashoffset="10" />
-    </svg>
-  )
-}

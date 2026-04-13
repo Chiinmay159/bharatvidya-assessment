@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { StudentPage } from './pages/StudentPage'
+import { ErrorBoundary } from './components/shared/ErrorBoundary'
 
 // Lazy-load admin (includes recharts ~400KB) — not needed for student path
 const AdminPage = lazy(() =>
@@ -17,19 +18,24 @@ function AdminFallback() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<StudentPage />} />
-        <Route
-          path="/admin"
-          element={
-            <Suspense fallback={<AdminFallback />}>
-              <AdminPage />
-            </Suspense>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <a href="#main-content" className="sr-only">
+          Skip to main content
+        </a>
+        <Routes>
+          <Route path="/" element={<StudentPage />} />
+          <Route
+            path="/admin"
+            element={
+              <Suspense fallback={<AdminFallback />}>
+                <AdminPage />
+              </Suspense>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

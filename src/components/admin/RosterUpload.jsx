@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import Papa from 'papaparse'
 import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { formatDbError } from '../../lib/errors'
@@ -36,40 +37,35 @@ export function RosterUpload({ batch, onBack }) {
     if (!file) return
     setError(null); setSuccess(null)
 
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = (ev.target.result || '').replace(/\r/g, '')
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-      if (!lines.length) { setError('File is empty.'); return }
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      transformHeader: h => h.trim().toLowerCase(),
+      complete(results) {
+        const headers = results.meta.fields || []
+        const required = ['roll_number', 'student_name', 'email']
+        const missing = required.filter(h => !headers.includes(h))
+        if (missing.length) { setError(`Missing required columns: ${missing.join(', ')}`); return }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase())
-      const required = ['roll_number', 'student_name', 'email']
-      const missing = required.filter(h => !headers.includes(h))
-      if (missing.length) { setError(`Missing required columns: ${missing.join(', ')}`); return }
+        const rows = []
+        const errs = []
+        results.data.forEach((row, i) => {
+          const roll  = (row.roll_number || '').trim()
+          const name  = (row.student_name || '').trim()
+          const email = (row.email || '').trim()
+          if (!roll || !name || !email) { errs.push(`Row ${i + 2}: missing required data`); return }
+          rows.push({ roll_number: roll, student_name: name, email })
+        })
 
-      const ri = headers.indexOf('roll_number')
-      const ni = headers.indexOf('student_name')
-      const ei = headers.indexOf('email')
-
-      const rows = []
-      const errs = []
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
-        const roll  = cols[ri] || ''
-        const name  = cols[ni] || ''
-        const email = cols[ei] || ''
-        if (!roll || !name || !email) { errs.push(`Row ${i + 1}: missing required data`); continue }
-        rows.push({ roll_number: roll, student_name: name, email })
-      }
-
-      if (errs.length) {
-        setError(errs.slice(0, 5).join('. ') + (errs.length > 5 ? ` (+${errs.length - 5} more)` : ''))
-        return
-      }
-      if (!rows.length) { setError('No valid rows found in the file.'); return }
-      setPending(rows)
-    }
-    reader.readAsText(file, 'UTF-8')
+        if (errs.length) {
+          setError(errs.slice(0, 5).join('. ') + (errs.length > 5 ? ` (+${errs.length - 5} more)` : ''))
+          return
+        }
+        if (!rows.length) { setError('No valid rows found in the file.'); return }
+        setPending(rows)
+      },
+    })
     e.target.value = ''
   }
 
@@ -137,10 +133,11 @@ export function RosterUpload({ batch, onBack }) {
           </h3>
           <div style={{ overflowX: 'auto', marginBottom: 16, maxHeight: 280, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <caption className="sr-only">Upload preview</caption>
               <thead>
                 <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                   {['Roll Number', 'Name', 'Email'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12 }}>{h}</th>
+                    <th key={h} scope="col" style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -168,10 +165,11 @@ export function RosterUpload({ batch, onBack }) {
       {roster.length > 0 && (
         <div className="card" style={{ overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <caption className="sr-only">Enrolled students</caption>
             <thead>
               <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                 {['Roll Number', 'Name', 'Email'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12 }}>{h}</th>
+                  <th key={h} scope="col" style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12 }}>{h}</th>
                 ))}
               </tr>
             </thead>

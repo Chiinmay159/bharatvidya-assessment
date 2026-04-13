@@ -116,10 +116,11 @@ export function QuestionUpload({ batch, onBack }) {
 
           <div className="card" style={{ overflow: 'auto', maxHeight: 300, marginBottom: 16 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <caption className="sr-only">Question preview</caption>
               <thead>
                 <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0 }}>
                   {['#', 'Question', 'A', 'B', 'C', 'D', '✓'].map(h => (
-                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} scope="col" style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>

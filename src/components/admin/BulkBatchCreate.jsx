@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Papa from 'papaparse'
+import { fromZonedTime } from 'date-fns-tz'
 import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
 
@@ -32,58 +34,52 @@ export function BulkBatchCreate({ onBack, onCreated }) {
     if (!file) return
     setError(null); setSuccess(null)
 
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = (ev.target.result || '').replace(/\r/g, '')
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-      if (lines.length < 2) { setError('File must have a header row and at least one data row.'); return }
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      transformHeader: h => h.trim().toLowerCase(),
+      complete(results) {
+        const headers = results.meta.fields || []
+        const required = ['batch_name', 'scheduled_start', 'duration_minutes']
+        const missing = required.filter(h => !headers.includes(h))
+        if (missing.length) { setError(`Missing columns: ${missing.join(', ')}`); return }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase())
-      const required = ['batch_name', 'scheduled_start', 'duration_minutes']
-      const missing = required.filter(h => !headers.includes(h))
-      if (missing.length) { setError(`Missing columns: ${missing.join(', ')}`); return }
+        const rows = []
+        const errs = []
+        results.data.forEach((row, i) => {
+          const name  = (row.batch_name || '').trim()
+          const start = (row.scheduled_start || '').trim()
+          const dur   = parseInt(row.duration_minutes || '')
+          const qps   = row.questions_per_student ? parseInt(row.questions_per_student) : null
+          const code  = (row.access_code || '').trim() || null
 
-      const ni  = headers.indexOf('batch_name')
-      const si  = headers.indexOf('scheduled_start')
-      const di  = headers.indexOf('duration_minutes')
-      const qpi = headers.indexOf('questions_per_student')
-      const ai  = headers.indexOf('access_code')
+          if (!name)                  { errs.push(`Row ${i + 2}: missing batch name`); return }
+          if (!start)                 { errs.push(`Row ${i + 2}: missing scheduled_start`); return }
+          if (isNaN(dur) || dur <= 0) { errs.push(`Row ${i + 2}: invalid duration`); return }
 
-      const rows = []
-      const errs = []
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
-        const name  = cols[ni] || ''
-        const start = cols[si] || ''
-        const dur   = parseInt(cols[di] || '')
-        const qps   = qpi >= 0 && cols[qpi] ? parseInt(cols[qpi]) : null
-        const code  = ai >= 0 ? (cols[ai] || null) : null
+          // Treat CSV dates as IST (Asia/Kolkata)
+          const parsedStart = fromZonedTime(start, 'Asia/Kolkata')
+          if (isNaN(parsedStart.getTime())) { errs.push(`Row ${i + 2}: invalid date "${start}"`); return }
 
-        if (!name)               { errs.push(`Row ${i + 1}: missing batch name`); continue }
-        if (!start)              { errs.push(`Row ${i + 1}: missing scheduled_start`); continue }
-        if (isNaN(dur) || dur <= 0) { errs.push(`Row ${i + 1}: invalid duration`); continue }
-
-        const parsedStart = new Date(start)
-        if (isNaN(parsedStart.getTime())) { errs.push(`Row ${i + 1}: invalid date "${start}"`); continue }
-
-        rows.push({
-          name,
-          scheduled_start: parsedStart.toISOString(),
-          duration_minutes: dur,
-          questions_per_student: (qps && qps > 0) ? qps : null,
-          access_code: code || null,
-          status: 'draft',
+          rows.push({
+            name,
+            scheduled_start: parsedStart.toISOString(),
+            duration_minutes: dur,
+            questions_per_student: (qps && qps > 0) ? qps : null,
+            access_code: code,
+            status: 'draft',
+          })
         })
-      }
 
-      if (errs.length) {
-        setError(errs.slice(0, 5).join('. ') + (errs.length > 5 ? ` (+${errs.length - 5} more)` : ''))
-        return
-      }
-      if (!rows.length) { setError('No valid rows found.'); return }
-      setPending(rows)
-    }
-    reader.readAsText(file, 'UTF-8')
+        if (errs.length) {
+          setError(errs.slice(0, 5).join('. ') + (errs.length > 5 ? ` (+${errs.length - 5} more)` : ''))
+          return
+        }
+        if (!rows.length) { setError('No valid rows found.'); return }
+        setPending(rows)
+      },
+    })
     e.target.value = ''
   }
 
@@ -160,10 +156,11 @@ export function BulkBatchCreate({ onBack, onCreated }) {
           </h3>
           <div style={{ overflowX: 'auto', marginBottom: 16 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <caption className="sr-only">Bulk batch creation preview</caption>
               <thead>
                 <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                   {['Batch Name', 'Scheduled Start', 'Duration', 'Qs/Student', 'Access Code'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} scope="col" style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>

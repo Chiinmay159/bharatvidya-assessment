@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BatchSelect }    from '../components/student/BatchSelect'
 import { Registration }   from '../components/student/Registration'
 import { ConfirmIdentity } from '../components/student/ConfirmIdentity'
@@ -6,14 +6,27 @@ import { WaitingRoom }    from '../components/student/WaitingRoom'
 import { Instructions }   from '../components/student/Instructions'
 import { ExamScreen }     from '../components/student/ExamScreen'
 import { ResultScreen }   from '../components/student/ResultScreen'
+import { ErrorBoundary }  from '../components/shared/ErrorBoundary'
 
 // Steps: 'select' → 'register' → 'confirm' → 'waiting' | 'instructions' → 'exam' → 'result'
 
 export function StudentPage() {
   const [step,          setStep]          = useState('select')
   const [selectedBatch, setSelectedBatch] = useState(null)
-  const [student,       setStudent]       = useState(null) // { rollNumber, studentName, email }
+  const [student,       setStudent]       = useState(null) // { rollNumber, studentName, email, accessCode }
   const [result,        setResult]        = useState(null)
+
+  // Focus management: move focus to main content on step transitions
+  const mainRef = useRef(null)
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    // After step change, focus the main wrapper so screen readers announce new content
+    requestAnimationFrame(() => {
+      const el = mainRef.current || document.getElementById('main-content')
+      if (el) { el.focus({ preventScroll: false }) }
+    })
+  }, [step])
 
   function handleSelectBatch(batch) {
     setSelectedBatch(batch)
@@ -99,13 +112,16 @@ export function StudentPage() {
 
   if (step === 'exam') {
     return (
-      <ExamScreen
-        batch={selectedBatch}
-        rollNumber={student.rollNumber}
-        studentName={student.studentName}
-        email={student.email}
-        onComplete={handleComplete}
-      />
+      <ErrorBoundary>
+        <ExamScreen
+          batch={selectedBatch}
+          rollNumber={student.rollNumber}
+          studentName={student.studentName}
+          email={student.email}
+          accessCode={student.accessCode}
+          onComplete={handleComplete}
+        />
+      </ErrorBoundary>
     )
   }
 

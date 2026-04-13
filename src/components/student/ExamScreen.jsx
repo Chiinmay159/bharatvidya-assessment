@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTimer } from '../../hooks/useTimer'
 import { useExamState } from '../../hooks/useExamState'
+import { FocusTrapModal } from '../shared/FocusTrapModal'
+import { Spinner } from '../shared/Spinner'
 
-export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }) {
+const DEVANAGARI_RE = /[\u0900-\u097F]/
+
+export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, onComplete }) {
   const [selectedLabel,    setSelectedLabel]    = useState(null)
   const [showConfirm,      setShowConfirm]      = useState(false)
   const [submittingAnswer, setSubmittingAnswer] = useState(false)
@@ -11,8 +15,8 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
 
   const {
     status, currentQuestion, currentIndex, totalQuestions,
-    attemptId, result, error, submitAnswer, autoSubmit,
-  } = useExamState({ batch, rollNumber, studentName, email })
+    attemptId, result, error, pendingCount, submitAnswer, autoSubmit,
+  } = useExamState({ batch, rollNumber, studentName, email, accessCode })
 
   const isLastQuestion = currentIndex === totalQuestions - 1
 
@@ -27,7 +31,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     autoSubmit()
   }
 
-  const { remainingFormatted, isUrgent, isExpired } = useTimer({
+  const { remainingMs, remainingFormatted, isUrgent, isExpired } = useTimer({
     scheduledStart: batch.scheduled_start,
     durationMinutes: batch.duration_minutes,
     onTimeUp: handleTimeUp,
@@ -35,6 +39,26 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     batchId: batch.id,
     enabled: status === 'ready',
   })
+
+  // Fix 6: Accessible timer — announce at 10min, 5min, 1min thresholds only
+  const [timerAnnouncement, setTimerAnnouncement] = useState('')
+  const announcedRef = useRef({ 10: false, 5: false, 1: false })
+  useEffect(() => {
+    if (remainingMs == null) return
+    const mins = Math.ceil(remainingMs / 60000)
+    /* eslint-disable react-hooks/set-state-in-effect -- one-shot announcements driven by timer threshold */
+    if (mins <= 1 && !announcedRef.current[1]) {
+      announcedRef.current[1] = true
+      setTimerAnnouncement('1 minute remaining — please finish soon.')
+    } else if (mins <= 5 && !announcedRef.current[5]) {
+      announcedRef.current[5] = true
+      setTimerAnnouncement('5 minutes remaining.')
+    } else if (mins <= 10 && !announcedRef.current[10]) {
+      announcedRef.current[10] = true
+      setTimerAnnouncement('10 minutes remaining.')
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [remainingMs])
 
   // Reset selection when question index changes
   const prevIndexRef = useRef(currentIndex)
@@ -104,7 +128,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     return (
       <div style={centerFlex}>
         <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
-          <Spinner size={28} />
+          <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="var(--accent)" /></div>
           <p style={{ marginTop: 14, fontSize: 14 }}>Preparing your exam…</p>
         </div>
       </div>
@@ -115,7 +139,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
     return (
       <div style={centerFlex}>
         <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
-          <Spinner size={28} />
+          <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="var(--accent)" /></div>
           <p style={{ marginTop: 14, fontSize: 14 }}>Submitting your answers…</p>
         </div>
       </div>
@@ -156,11 +180,18 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
       {/* ── Sticky header ──────────────────────────────────── */}
       <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--surface)', borderBottom: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
         {/* Progress bar */}
-        <div style={{ height: 4, background: 'var(--surface-2)' }}>
+        <div
+          role="progressbar"
+          aria-valuenow={currentIndex}
+          aria-valuemin={0}
+          aria-valuemax={totalQuestions}
+          aria-label="Exam progress"
+          style={{ height: 4, background: 'var(--surface-2)' }}
+        >
           <div style={{ height: '100%', width: `${progress}%`, background: 'var(--accent)', transition: 'width .4s var(--ease-smooth)', borderRadius: '0 2px 2px 0' }} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', maxWidth: 760, margin: '0 auto', width: '100%', gap: 12 }}>
+        <div className="exam-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', maxWidth: 760, margin: '0 auto', width: '100%', gap: 12 }}>
           {/* Batch + question counter */}
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -172,7 +203,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
           </div>
 
           {/* Timer */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+          <div className="exam-header-timer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
             <div
               className={`font-timer ${isUrgent ? 'u-timer-urgent' : ''}`}
               style={{ fontSize: 24, fontWeight: 700, color: timerColor, lineHeight: 1, transition: 'color .4s ease' }}
@@ -186,10 +217,22 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
             )}
           </div>
         </div>
+
+        {/* Offline queue banner */}
+        {pendingCount > 0 && (
+          <div style={{ background: 'var(--warn-lt)', borderTop: '1px solid #FDE68A', padding: '6px 20px', fontSize: 12, fontWeight: 600, color: 'var(--warn)', textAlign: 'center' }}>
+            ⚠ {pendingCount} answer{pendingCount !== 1 ? 's' : ''} pending sync
+          </div>
+        )}
       </header>
 
+      {/* Accessible timer announcements (sr-only, assertive) */}
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {timerAnnouncement}
+      </div>
+
       {/* ── Question area ───────────────────────────────────── */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 20px 48px' }}>
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 20px 48px', outline: 'none' }}>
         <div style={{ width: '100%', maxWidth: 680 }}>
 
           {/* Question card */}
@@ -198,7 +241,9 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
               Question {currentIndex + 1}
             </div>
             <p style={{ margin: 0, fontSize: 17, lineHeight: 1.7, color: 'var(--text-1)', fontWeight: 500 }}>
-              {currentQuestion.questionText}
+              {DEVANAGARI_RE.test(currentQuestion.questionText)
+                ? <span lang="hi">{currentQuestion.questionText}</span>
+                : currentQuestion.questionText}
             </p>
           </div>
 
@@ -218,7 +263,8 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
                     value={option.label}
                     checked={isSelected}
                     onChange={() => setSelectedLabel(option.label)}
-                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                    aria-label={`Option ${option.label}: ${option.text}`}
+                    style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
                   />
 
                   {/* Letter badge */}
@@ -248,7 +294,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
                   {/* Checkmark */}
                   {isSelected && (
                     <div style={{ flexShrink: 0, color: 'var(--accent)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <svg aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                         <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
@@ -288,7 +334,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
 
       {/* ── Confirm submit modal ─────────────────────────────── */}
       {showConfirm && (
-        <Overlay>
+        <FocusTrapModal ariaLabel="Confirm exam submission" onClose={() => setShowConfirm(false)}>
           <div style={{ fontSize: 36, marginBottom: 14 }}>📋</div>
           <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, letterSpacing: '-.2px' }}>Submit your exam?</h2>
           <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6 }}>
@@ -318,39 +364,22 @@ export function ExamScreen({ batch, rollNumber, studentName, email, onComplete }
               Go back
             </button>
           </div>
-        </Overlay>
+        </FocusTrapModal>
       )}
 
       {/* ── Time-up overlay ─────────────────────────────────── */}
       {isExpired && status !== 'submitting' && (
-        <Overlay>
+        <FocusTrapModal ariaLabel="Time is up" closeOnBackdrop={false}>
           <div style={{ fontSize: 44, marginBottom: 14 }}>⏰</div>
           <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Time's up!</h2>
           <p style={{ margin: '0 0 20px', color: 'var(--text-2)', fontSize: 14 }}>Submitting your answers…</p>
-          <Spinner size={28} />
-        </Overlay>
+          <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="var(--accent)" /></div>
+        </FocusTrapModal>
       )}
     </div>
   )
 }
 
 /* ── Sub-components ──────────────────────────────────────── */
-function Overlay({ children }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(15,23,42,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(2px)' }}>
-      <div className="card u-slide-up" style={{ maxWidth: 360, width: '100%', padding: '36px 28px', textAlign: 'center', boxShadow: 'var(--shadow-xl)' }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function Spinner({ size = 24 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="u-spin" style={{ display: 'block', margin: '0 auto' }}>
-      <circle cx="12" cy="12" r="10" fill="none" stroke="var(--accent)" strokeWidth="3" strokeDasharray="31" strokeDashoffset="10" />
-    </svg>
-  )
-}
 
 const centerFlex = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }
