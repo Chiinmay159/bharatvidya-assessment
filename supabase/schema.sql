@@ -26,6 +26,8 @@
 --      get_my_attempt for retry support, protect_active_batch updated
 --   9. fix_delete_cascade_and_retry_alignment (2026-04-13) — delete_attempt
 --      and reset_batch_attempts RPCs (FK-safe cascade for admin delete/reset)
+--  10. drop_old_attempts_unique_constraint (2026-04-13) — drop stale
+--      UNIQUE(batch_id, roll_number) that blocked retry attempts
 --
 -- Minimum frontend version: commit after 009 migration
 -- ================================================================
