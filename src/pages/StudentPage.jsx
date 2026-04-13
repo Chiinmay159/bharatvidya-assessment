@@ -16,6 +16,10 @@ export function StudentPage() {
   const [student,       setStudent]       = useState(null) // { rollNumber, studentName, email, accessCode }
   const [result,        setResult]        = useState(null)
 
+  // Retry support: key forces ExamScreen remount; forceNewAttempt triggers new attempt creation
+  const [examKey,          setExamKey]          = useState(0)
+  const [forceNewAttempt,  setForceNewAttempt]  = useState(false)
+
   // Focus management: move focus to main content on step transitions
   const mainRef = useRef(null)
   const isFirstRender = useRef(true)
@@ -61,7 +65,16 @@ export function StudentPage() {
 
   function handleComplete(examResult) {
     setResult(examResult)
+    setForceNewAttempt(false) // Reset after exam completes
     setStep('result')
+  }
+
+  // Called by ResultScreen "Retry Exam" button
+  function handleRetry() {
+    setForceNewAttempt(true)
+    setExamKey(k => k + 1) // Force complete remount of ExamScreen
+    setResult(null)
+    setStep('exam')
   }
 
   if (step === 'select') {
@@ -114,11 +127,13 @@ export function StudentPage() {
     return (
       <ErrorBoundary>
         <ExamScreen
+          key={examKey}
           batch={selectedBatch}
           rollNumber={student.rollNumber}
           studentName={student.studentName}
           email={student.email}
           accessCode={student.accessCode}
+          forceNewAttempt={forceNewAttempt}
           onComplete={handleComplete}
         />
       </ErrorBoundary>
@@ -132,6 +147,7 @@ export function StudentPage() {
         batch={selectedBatch}
         rollNumber={student?.rollNumber}
         studentName={student?.studentName}
+        onRetry={handleRetry}
       />
     )
   }

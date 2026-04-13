@@ -1,7 +1,51 @@
-export function ResultScreen({ result, batch, rollNumber, studentName }) {
-  const { score, total, percentage, alreadySubmitted } = result || {}
+export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }) {
+  const {
+    score, total, percentage, alreadySubmitted,
+    showResults = true, passPercentage, canRetry,
+    attemptNumber, maxAttempts,
+  } = result || {}
 
-  if (alreadySubmitted) {
+  /* ── Already submitted (page refresh / re-entry) ────────── */
+  if (alreadySubmitted && !showResults && !canRetry) {
+    return (
+      <div style={pageStyle}>
+        <div className="card u-slide-up" style={cardStyle}>
+          <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
+            <ClipboardIcon />
+          </div>
+          <h1 style={headingStyle}>Exam Submitted</h1>
+          <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
+            Your answers have been recorded successfully.
+          </p>
+          <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 13, lineHeight: 1.65 }}>
+            Results will be shared by your instructor.
+          </p>
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} />
+        </div>
+      </div>
+    )
+  }
+
+  if (alreadySubmitted && !showResults && canRetry) {
+    return (
+      <div style={pageStyle}>
+        <div className="card u-slide-up" style={cardStyle}>
+          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '2px solid #FECACA' }}>
+            <XIcon />
+          </div>
+          <h1 style={headingStyle}>Exam Submitted</h1>
+          <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
+            You did not meet the passing criteria for this exam.
+          </p>
+          <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
+          <RetryButton onRetry={onRetry} />
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} />
+        </div>
+      </div>
+    )
+  }
+
+  if (alreadySubmitted && showResults && percentage == null) {
     return (
       <div style={pageStyle}>
         <div className="card u-slide-up" style={cardStyle}>
@@ -18,11 +62,58 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
     )
   }
 
+  /* ── Results hidden (fresh submission) ──────────────────── */
+  if (!showResults && !canRetry) {
+    return (
+      <div style={pageStyle}>
+        <div className="card u-slide-up" style={cardStyle}>
+          <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
+            <ClipboardIcon />
+          </div>
+          <h1 style={headingStyle}>Exam Submitted</h1>
+          <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
+            Your answers have been recorded successfully.
+          </p>
+          <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 13, lineHeight: 1.65 }}>
+            Results will be shared by your instructor.
+          </p>
+          {attemptNumber > 1 && (
+            <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
+              Attempt {attemptNumber} of {maxAttempts}
+            </p>
+          )}
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} />
+          <CloseMessage />
+        </div>
+      </div>
+    )
+  }
+
+  if (!showResults && canRetry) {
+    return (
+      <div style={pageStyle}>
+        <div className="card u-slide-up" style={cardStyle}>
+          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '2px solid #FECACA' }}>
+            <XIcon />
+          </div>
+          <h1 style={headingStyle}>Exam Submitted</h1>
+          <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
+            You did not meet the passing criteria for this exam.
+          </p>
+          <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
+          <RetryButton onRetry={onRetry} />
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} />
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Full results visible ───────────────────────────────── */
   const pct    = Number.isFinite(percentage) ? percentage : 0
-  const passed = pct >= 60
+  const passed = passPercentage != null ? pct >= passPercentage : pct >= 60
   const grade  = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : 'F'
-  const resultColor = passed ? 'var(--success)' : 'var(--error)'
-  const resultBg    = passed ? 'var(--success-lt)' : 'var(--error-lt)'
+  const resultColor  = passed ? 'var(--success)' : 'var(--error)'
+  const resultBg     = passed ? 'var(--success-lt)' : 'var(--error-lt)'
   const resultBorder = passed ? '#A7F3D0' : '#FECACA'
 
   return (
@@ -39,7 +130,10 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
           {passed ? 'Congratulations!' : 'Better luck next time'}
         </div>
         <h1 style={{ ...headingStyle, marginBottom: 4 }}>Exam Submitted</h1>
-        <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>{batch?.name}</p>
+        <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>
+          {batch?.name}
+          {attemptNumber > 1 && <span> — Attempt {attemptNumber}</span>}
+        </p>
 
         {/* Score hero block */}
         <div
@@ -72,6 +166,18 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
           </div>
         </div>
 
+        {/* Pass threshold */}
+        {passPercentage != null && (
+          <div style={{
+            fontSize: 12, fontWeight: 600, textAlign: 'center', marginBottom: 14,
+            color: passed ? 'var(--success)' : 'var(--error)',
+          }}>
+            {passed
+              ? `Passing score: ${passPercentage}% — You passed!`
+              : `Passing score: ${passPercentage}% — You needed ${passPercentage - pct}% more`}
+          </div>
+        )}
+
         {/* Score breakdown */}
         <div style={{ display: 'flex', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 24 }}>
           <StatCell label="Correct"   value={score ?? 0}                         color="var(--success)" />
@@ -79,20 +185,24 @@ export function ResultScreen({ result, batch, rollNumber, studentName }) {
           <StatCell label="Total"     value={total ?? 0}                          color="var(--text-1)"  border />
         </div>
 
-        {/* Student identity */}
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'center', gap: 16, fontSize: 13, color: 'var(--text-2)', flexWrap: 'wrap' }}>
-          <span>Roll No <strong style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{rollNumber}</strong></span>
-          <span style={{ color: 'var(--border-md)' }}>|</span>
-          <strong style={{ color: 'var(--text-1)' }}>{studentName}</strong>
-        </div>
+        {/* Retry section */}
+        {canRetry && (
+          <div style={{ marginBottom: 20 }}>
+            <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
+            <RetryButton onRetry={onRetry} />
+          </div>
+        )}
 
-        <p style={{ margin: '14px 0 0', fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
-          You may close this window. Thank you for taking the exam.
-        </p>
+        {/* Student identity */}
+        <StudentFooter rollNumber={rollNumber} studentName={studentName} />
+
+        {!canRetry && <CloseMessage />}
       </div>
     </div>
   )
 }
+
+/* ── Sub-components ─────────────────────────────────────────── */
 
 function StatCell({ label, value, color, border }) {
   return (
@@ -102,6 +212,50 @@ function StatCell({ label, value, color, border }) {
     </div>
   )
 }
+
+function RetryInfo({ attemptNumber, maxAttempts }) {
+  const remaining = (maxAttempts ?? 1) - (attemptNumber ?? 1)
+  if (remaining <= 0) return null
+  return (
+    <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-2)', textAlign: 'center' }}>
+      You have <strong style={{ color: 'var(--accent-deep)' }}>{remaining}</strong> retry{remaining !== 1 ? 's' : ''} remaining.
+      You will receive different questions.
+    </p>
+  )
+}
+
+function RetryButton({ onRetry }) {
+  if (!onRetry) return null
+  return (
+    <button
+      onClick={onRetry}
+      className="btn btn-primary btn-block"
+      style={{ padding: '13px 20px', fontSize: 15 }}
+    >
+      Retry Exam
+    </button>
+  )
+}
+
+function StudentFooter({ rollNumber, studentName }) {
+  return (
+    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 16, display: 'flex', justifyContent: 'center', gap: 16, fontSize: 13, color: 'var(--text-2)', flexWrap: 'wrap' }}>
+      <span>Roll No <strong style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{rollNumber}</strong></span>
+      <span style={{ color: 'var(--border-md)' }}>|</span>
+      <strong style={{ color: 'var(--text-1)' }}>{studentName}</strong>
+    </div>
+  )
+}
+
+function CloseMessage() {
+  return (
+    <p style={{ margin: '14px 0 0', fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+      You may close this window. Thank you for taking the exam.
+    </p>
+  )
+}
+
+/* ── Icons ──────────────────────────────────────────────────── */
 
 function CheckIcon() {
   return (
@@ -129,6 +283,18 @@ function WarningIcon() {
     </svg>
   )
 }
+
+function ClipboardIcon() {
+  return (
+    <svg aria-hidden="true" width="26" height="26" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+      <polyline points="9 14 11 16 15 10" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/* ── Style constants ────────────────────────────────────────── */
 
 const pageStyle = {
   minHeight: '100vh',

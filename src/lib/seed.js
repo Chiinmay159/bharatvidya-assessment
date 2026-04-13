@@ -102,10 +102,11 @@ function shuffleOptions(question, rng) {
  * @param {string} rollNumber
  * @param {string} batchId
  * @param {number|null} questionsPerStudent — null = use all
+ * @param {number} [attemptNumber=1] — attempt number (changes seed for retries)
  * @returns {Array<ShuffledQuestion>}
  */
-export function selectAndShuffleQuestions(questions, rollNumber, batchId, questionsPerStudent) {
-  const seed = cyrb53(rollNumber + '|' + batchId)
+export function selectAndShuffleQuestions(questions, rollNumber, batchId, questionsPerStudent, attemptNumber = 1) {
+  const seed = cyrb53(rollNumber + '|' + batchId + '|' + attemptNumber)
   const rng = mulberry32(seed)
 
   // Shuffle the full pool (selection + ordering in one pass)

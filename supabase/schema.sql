@@ -20,8 +20,12 @@
 --      RPC replaces anon INSERT on responses (validates session token),
 --      submit_exam gains session-token validation, anon INSERT policy
 --      on responses dropped
+--   8. features_deletion_results_retries (2026-04-13) — delete_batch RPC,
+--      show_results/pass_percentage/max_attempts columns, attempt_number,
+--      relaxed UNIQUE constraint, updated create_attempt/submit_exam/
+--      get_my_attempt for retry support, protect_active_batch updated
 --
--- Minimum frontend version: commit after 007 migration
+-- Minimum frontend version: commit after 008 migration
 -- ================================================================
 
 
@@ -72,7 +76,10 @@ CREATE TABLE IF NOT EXISTS public.batches (
   questions_per_student int CHECK (questions_per_student > 0),
   created_at           timestamptz NOT NULL DEFAULT now(),
   access_code          text,
-  has_access_code      boolean GENERATED ALWAYS AS (access_code IS NOT NULL AND access_code != '') STORED
+  has_access_code      boolean GENERATED ALWAYS AS (access_code IS NOT NULL AND access_code != '') STORED,
+  show_results         boolean NOT NULL DEFAULT true,
+  pass_percentage      int CHECK (pass_percentage >= 1 AND pass_percentage <= 100),
+  max_attempts         int NOT NULL DEFAULT 1 CHECK (max_attempts >= 1)
 );
 ALTER TABLE public.batches ENABLE ROW LEVEL SECURITY;
 
@@ -102,7 +109,8 @@ CREATE TABLE IF NOT EXISTS public.attempts (
   total_questions int,
   email           text,
   session_token   uuid,
-  CONSTRAINT attempts_batch_roll_unique UNIQUE (batch_id, roll_number)
+  attempt_number  int NOT NULL DEFAULT 1,
+  CONSTRAINT attempts_batch_roll_attempt_unique UNIQUE (batch_id, roll_number, attempt_number)
 );
 ALTER TABLE public.attempts ENABLE ROW LEVEL SECURITY;
 
@@ -158,7 +166,8 @@ ALTER TABLE public.tab_switches ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.batches FROM anon;
 GRANT SELECT (
   id, name, scheduled_start, duration_minutes, status,
-  created_by, questions_per_student, created_at, has_access_code
+  created_by, questions_per_student, created_at, has_access_code,
+  show_results, pass_percentage, max_attempts
 ) ON public.batches TO anon;
 
 CREATE POLICY batches_select_public ON public.batches
@@ -270,6 +279,7 @@ CREATE TRIGGER attempts_restrict_columns
   FOR EACH ROW EXECUTE FUNCTION restrict_attempt_update_columns();
 
 -- 3.3 Prevent modifying active/completed batch details
+--     show_results is intentionally NOT locked (admin can toggle anytime).
 CREATE OR REPLACE FUNCTION public.protect_active_batch()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -279,6 +289,8 @@ BEGIN
        OR NEW.access_code IS DISTINCT FROM OLD.access_code
        OR NEW.questions_per_student IS DISTINCT FROM OLD.questions_per_student
        OR NEW.name IS DISTINCT FROM OLD.name
+       OR NEW.pass_percentage IS DISTINCT FROM OLD.pass_percentage
+       OR NEW.max_attempts IS DISTINCT FROM OLD.max_attempts
     THEN
       RAISE EXCEPTION 'Cannot modify batch details while status is %', OLD.status;
     END IF;
@@ -327,7 +339,8 @@ $$;
 REVOKE ALL ON FUNCTION public.get_exam_questions(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_exam_questions(uuid) TO anon, authenticated;
 
--- 4.3 Get student's own attempt (requires student_name — no roll-only probing)
+-- 4.3 Get student's own attempts (requires student_name — no roll-only probing)
+--     Returns all attempts ordered by attempt_number DESC (latest first).
 CREATE OR REPLACE FUNCTION public.get_my_attempt(
   p_batch_id     uuid,
   p_roll_number  text,
@@ -342,15 +355,18 @@ RETURNS TABLE (
   started_at      timestamptz,
   submitted_at    timestamptz,
   score           int,
-  total_questions int
+  total_questions int,
+  attempt_number  int
 )
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT a.id, a.batch_id, a.roll_number, a.student_name, a.email,
-         a.started_at, a.submitted_at, a.score, a.total_questions
+         a.started_at, a.submitted_at, a.score, a.total_questions,
+         a.attempt_number
   FROM public.attempts a
   WHERE a.batch_id = p_batch_id
     AND a.roll_number = p_roll_number
-    AND a.student_name = p_student_name;
+    AND a.student_name = p_student_name
+  ORDER BY a.attempt_number DESC;
 $$;
 REVOKE ALL ON FUNCTION public.get_my_attempt(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_attempt(uuid, text, text) TO anon, authenticated;
@@ -374,33 +390,68 @@ $$;
 REVOKE ALL ON FUNCTION public.get_my_responses(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_responses(uuid, text, text) TO anon, authenticated;
 
--- 4.5 Submit exam (server-side scoring + session-token validation)
+-- 4.5 Submit exam (server-side scoring + session-token validation + retry info)
 CREATE OR REPLACE FUNCTION public.submit_exam(
   p_attempt_id    uuid,
   p_session_token uuid DEFAULT NULL
 )
-RETURNS TABLE (score int, total_questions int)
+RETURNS TABLE (
+  score           int,
+  total_questions int,
+  show_results    boolean,
+  pass_percentage int,
+  attempt_number  int,
+  max_attempts    int,
+  can_retry       boolean
+)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_score        int;
-  v_total        int;
-  v_batch_status text;
-  v_submitted    timestamptz;
-  v_session      uuid;
+  v_score          int;
+  v_total          int;
+  v_batch_status   text;
+  v_submitted      timestamptz;
+  v_session        uuid;
+  v_show_results   boolean;
+  v_pass_pct       int;
+  v_attempt_num    int;
+  v_max_attempts   int;
+  v_batch_id       uuid;
+  v_pct            int;
+  v_can_retry      boolean;
 BEGIN
-  SELECT a.submitted_at, b.status, a.session_token
-  INTO   v_submitted, v_batch_status, v_session
+  SELECT a.submitted_at, b.status, a.session_token,
+         b.show_results, b.pass_percentage, a.attempt_number,
+         b.max_attempts, a.batch_id
+  INTO   v_submitted, v_batch_status, v_session,
+         v_show_results, v_pass_pct, v_attempt_num,
+         v_max_attempts, v_batch_id
   FROM   public.attempts a
   JOIN   public.batches  b ON b.id = a.batch_id
   WHERE  a.id = p_attempt_id;
 
   IF NOT FOUND THEN RAISE EXCEPTION 'Attempt not found'; END IF;
 
-  -- Already submitted → return existing score (idempotent)
+  -- Already submitted → return existing data (idempotent)
   IF v_submitted IS NOT NULL THEN
     SELECT a.score, a.total_questions INTO v_score, v_total
     FROM public.attempts a WHERE a.id = p_attempt_id;
-    RETURN QUERY SELECT v_score, v_total;
+
+    v_pct := CASE WHEN v_total > 0 THEN round((v_score::numeric / v_total) * 100) ELSE 0 END;
+    v_can_retry := (
+      v_attempt_num < v_max_attempts
+      AND v_pass_pct IS NOT NULL
+      AND v_pct < v_pass_pct
+      AND v_batch_status = 'active'
+    );
+
+    RETURN QUERY SELECT
+      CASE WHEN v_show_results THEN v_score ELSE NULL::int END,
+      v_total,
+      v_show_results,
+      v_pass_pct,
+      v_attempt_num,
+      v_max_attempts,
+      v_can_retry;
     RETURN;
   END IF;
 
@@ -424,14 +475,28 @@ BEGIN
   SET submitted_at = now(), score = v_score, total_questions = v_total
   WHERE id = p_attempt_id;
 
-  RETURN QUERY SELECT v_score, v_total;
+  v_pct := CASE WHEN v_total > 0 THEN round((v_score::numeric / v_total) * 100) ELSE 0 END;
+  v_can_retry := (
+    v_attempt_num < v_max_attempts
+    AND v_pass_pct IS NOT NULL
+    AND v_pct < v_pass_pct
+    AND v_batch_status = 'active'
+  );
+
+  RETURN QUERY SELECT
+    CASE WHEN v_show_results THEN v_score ELSE NULL::int END,
+    v_total,
+    v_show_results,
+    v_pass_pct,
+    v_attempt_num,
+    v_max_attempts,
+    v_can_retry;
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.submit_exam(uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.submit_exam(uuid, uuid) TO anon, authenticated;
 
--- 4.6 Create attempt (server-side, with access-code enforcement)
+-- 4.6 Create attempt (server-side, with access-code + max-attempts enforcement)
 CREATE OR REPLACE FUNCTION public.create_attempt(
   p_batch_id     uuid,
   p_roll_number  text,
@@ -442,12 +507,16 @@ CREATE OR REPLACE FUNCTION public.create_attempt(
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_id     uuid;
-  v_status text;
-  v_code   text;
+  v_id             uuid;
+  v_status         text;
+  v_code           text;
+  v_max_attempts   int;
+  v_existing_count int;
+  v_next_attempt   int;
 BEGIN
-  SELECT status, access_code INTO v_status, v_code
-  FROM public.batches WHERE id = p_batch_id;
+  SELECT status, access_code, max_attempts
+  INTO   v_status, v_code, v_max_attempts
+  FROM   public.batches WHERE id = p_batch_id;
 
   IF v_status IS NULL THEN RAISE EXCEPTION 'Batch not found'; END IF;
   IF v_status != 'active' THEN RAISE EXCEPTION 'Batch is not active'; END IF;
@@ -458,8 +527,19 @@ BEGIN
     END IF;
   END IF;
 
-  INSERT INTO public.attempts (batch_id, roll_number, student_name, email)
-  VALUES (p_batch_id, p_roll_number, p_student_name, p_email)
+  -- Count existing attempts for this student in this batch
+  SELECT COUNT(*) INTO v_existing_count
+  FROM public.attempts
+  WHERE batch_id = p_batch_id AND roll_number = p_roll_number;
+
+  v_next_attempt := v_existing_count + 1;
+
+  IF v_next_attempt > v_max_attempts THEN
+    RAISE EXCEPTION 'Maximum attempts reached for this exam';
+  END IF;
+
+  INSERT INTO public.attempts (batch_id, roll_number, student_name, email, attempt_number)
+  VALUES (p_batch_id, p_roll_number, p_student_name, p_email, v_next_attempt)
   RETURNING id INTO v_id;
 
   RETURN v_id;
@@ -601,6 +681,46 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.save_response(uuid, uuid, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.save_response(uuid, uuid, text, uuid) TO anon, authenticated;
+
+-- 4.13 Delete batch (admin cascade with audit log)
+CREATE OR REPLACE FUNCTION public.delete_batch(p_batch_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_name text;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT name INTO v_name FROM public.batches WHERE id = p_batch_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Batch not found';
+  END IF;
+
+  -- Audit log BEFORE cascade (batch still exists for context)
+  INSERT INTO public.audit_log (action, entity, entity_id, actor, details)
+  VALUES (
+    'batch_deleted', 'batch', p_batch_id,
+    coalesce(current_setting('request.jwt.claims', true)::json->>'email', 'unknown'),
+    jsonb_build_object('batch_name', v_name)
+  );
+
+  -- Cascade in dependency order
+  DELETE FROM public.tab_switches WHERE attempt_id IN (
+    SELECT id FROM public.attempts WHERE batch_id = p_batch_id
+  );
+  DELETE FROM public.responses WHERE attempt_id IN (
+    SELECT id FROM public.attempts WHERE batch_id = p_batch_id
+  );
+  DELETE FROM public.attempts  WHERE batch_id = p_batch_id;
+  DELETE FROM public.questions WHERE batch_id = p_batch_id;
+  DELETE FROM public.roster    WHERE batch_id = p_batch_id;
+  DELETE FROM public.batches   WHERE id = p_batch_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.delete_batch(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_batch(uuid) TO authenticated;
 
 -- 4.14 Claim session token (rotates atomically; invalidates prior sessions)
 CREATE OR REPLACE FUNCTION public.claim_session(

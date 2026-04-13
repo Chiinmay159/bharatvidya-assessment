@@ -18,7 +18,7 @@ export function BatchSelect({ onSelectBatch }) {
         .from('batches')
         // access_code is hidden via column-level REVOKE; has_access_code is a
         // server-side generated boolean so the client never sees the real code
-        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, has_access_code')
+        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, has_access_code, show_results, pass_percentage, max_attempts')
         .in('status', ['scheduled', 'active'])
         .order('scheduled_start', { ascending: true })
 

@@ -7,7 +7,7 @@ import { Spinner } from '../shared/Spinner'
 
 const DEVANAGARI_RE = /[\u0900-\u097F]/
 
-export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, onComplete }) {
+export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt, onComplete }) {
   const [selectedLabel,    setSelectedLabel]    = useState(null)
   const [showConfirm,      setShowConfirm]      = useState(false)
   const [submittingAnswer, setSubmittingAnswer] = useState(false)
@@ -17,7 +17,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     status, currentQuestion, currentIndex, totalQuestions,
     attemptId, result, error, pendingCount, unsavedCount,
     submitAnswer, autoSubmit, retrySubmit, forceSubmit,
-  } = useExamState({ batch, rollNumber, studentName, email, accessCode })
+  } = useExamState({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt })
 
   const isLastQuestion = currentIndex === totalQuestions - 1
 

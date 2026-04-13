@@ -29,6 +29,9 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
   const [cloneTarget,      setCloneTarget]   = useState(null)
   const [cloning,          setCloning]       = useState(false)
   const [transitioning,    setTransitioning] = useState(null)
+  const [deleteTarget,     setDeleteTarget]  = useState(null)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [deleting,         setDeleting]      = useState(false)
   const liveRefreshRef = useRef(null)
 
   const fetchCounts = useCallback(async (ids) => {
@@ -87,7 +90,17 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
     try {
       const { data: cloned, error } = await supabase
         .from('batches')
-        .insert({ name: `${batch.name} (copy)`, scheduled_start: batch.scheduled_start, duration_minutes: batch.duration_minutes, questions_per_student: batch.questions_per_student, access_code: batch.access_code, status: 'draft' })
+        .insert({
+          name: `${batch.name} (copy)`,
+          scheduled_start: batch.scheduled_start,
+          duration_minutes: batch.duration_minutes,
+          questions_per_student: batch.questions_per_student,
+          access_code: batch.access_code,
+          show_results: batch.show_results ?? true,
+          pass_percentage: batch.pass_percentage ?? null,
+          max_attempts: batch.max_attempts ?? 1,
+          status: 'draft',
+        })
         .select('id').single()
       if (error) throw error
 
@@ -105,6 +118,21 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
       alert('Clone failed: ' + err.message)
     } finally {
       setCloning(false)
+    }
+  }
+
+  async function doDelete(batchId) {
+    setDeleting(true)
+    try {
+      const { error } = await supabase.rpc('delete_batch', { p_batch_id: batchId })
+      if (error) throw error
+      setDeleteTarget(null)
+      setDeleteConfirmName('')
+      await fetchBatches()
+    } catch (err) {
+      alert('Delete failed: ' + err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -190,9 +218,14 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
                       <td style={{ padding: '13px 14px', fontWeight: 600, color: 'var(--text-1)', minWidth: 140 }}>
                         {batch.name}
                         {batch.access_code && (
-                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--warn)', background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 99, padding: '1px 6px', marginLeft: 6 }}>
-                            🔒 Code
-                          </div>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--warn)', background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 6, verticalAlign: 'middle' }}>
+                            <LockIcon /> Code
+                          </span>
+                        )}
+                        {batch.max_attempts > 1 && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 4, verticalAlign: 'middle' }}>
+                            {batch.max_attempts} attempts
+                          </span>
                         )}
                       </td>
 
@@ -270,6 +303,13 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
                             <button onClick={() => onViewResults(batch)} className="action-link">Results</button>
                           )}
                           <button onClick={() => setCloneTarget(batch)} className="action-link">Clone</button>
+                          <button
+                            onClick={() => { setDeleteTarget(batch); setDeleteConfirmName('') }}
+                            className="action-link"
+                            style={{ color: 'var(--error)' }}
+                          >
+                            Delete
+                          </button>
 
                           {transitions.map(t => (
                             <button
@@ -279,7 +319,7 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
                               style={{
                                 all: 'unset', cursor: 'pointer',
                                 fontSize: 11, fontWeight: 600,
-                                padding: '3px 9px', borderRadius: 6,
+                                padding: '3px 9px', borderRadius: 'var(--radius-sm)',
                                 border: '1px solid',
                                 whiteSpace: 'nowrap',
                                 ...(t.variant === 'success'
@@ -358,9 +398,58 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
           </div>
         </div>
       )}
+
+      {/* Delete modal — double-confirm (type batch name) */}
+      {deleteTarget && (
+        <div className="admin-overlay">
+          <div className="card u-slide-up" style={{ maxWidth: 420, width: '100%', padding: '28px 24px', boxShadow: 'var(--shadow-xl)' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 700, color: 'var(--error)' }}>Delete batch permanently?</h3>
+            <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 16, fontSize: 13, color: 'var(--error)', lineHeight: 1.6 }}>
+              This will permanently delete <strong>{deleteTarget.name}</strong> and all its data: questions, roster, student attempts, responses, and tab switch logs. This cannot be undone.
+            </div>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>
+              Type <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{deleteTarget.name}</strong> to confirm:
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={e => setDeleteConfirmName(e.target.value)}
+              placeholder={deleteTarget.name}
+              autoFocus
+              style={{
+                width: '100%', padding: '9px 13px',
+                border: '1px solid var(--border-md)', borderRadius: 'var(--radius-md)',
+                fontSize: 14, color: 'var(--text-1)', background: 'var(--surface)',
+                outline: 'none', fontFamily: 'inherit', marginBottom: 20,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => doDelete(deleteTarget.id)}
+                disabled={deleting || deleteConfirmName.trim() !== deleteTarget.name.trim()}
+                style={{
+                  all: 'unset', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '9px 18px', borderRadius: 'var(--radius-md)',
+                  background: 'var(--error)', color: '#fff',
+                  fontSize: 13, fontWeight: 600,
+                  opacity: (deleting || deleteConfirmName.trim() !== deleteTarget.name.trim()) ? .4 : 1,
+                }}
+              >
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </button>
+              <button onClick={() => { setDeleteTarget(null); setDeleteConfirmName('') }} disabled={deleting} className="btn btn-secondary" style={{ padding: '9px 18px', fontSize: 13 }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+/* ── Sub-components ─────────────────────────────────────────── */
 
 function Spinner({ size = 20 }) {
   return (
@@ -375,6 +464,15 @@ function InboxIcon() {
     <svg width="24" height="24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" viewBox="0 0 24 24">
       <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
       <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" />
     </svg>
   )
 }

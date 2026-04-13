@@ -13,13 +13,17 @@ import { formatDbError } from '../lib/errors'
  * - Attempt creation via create_attempt RPC (server-side access-code enforcement)
  * - get_my_attempt requires student name for ownership verification
  * - get_my_responses requires roll_number + student_name for ownership
- * - UNIQUE(attempt_id, question_id) on responses prevents score tampering
- * - UNIQUE(batch_id, roll_number) on attempts prevents duplicate attempts
+ * - UNIQUE(batch_id, roll_number, attempt_number) on attempts
  * - Session tokens enforced authoritatively: save_response and submit_exam
  *   both validate the token server-side (no anon INSERT policy on responses)
  * - Heartbeat via check_session detects when another window claims the session
+ *
+ * Retry support:
+ * - forceNewAttempt=true creates a new attempt even when previous is submitted
+ * - Seed includes attemptNumber for different questions per retry
+ * - submit_exam returns can_retry, show_results, pass_percentage for result UI
  */
-export function useExamState({ batch, rollNumber, studentName, email, accessCode }) {
+export function useExamState({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt = false }) {
   const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
   const [attemptId,    setAttemptId]    = useState(null)
   const [questions,    setQuestions]    = useState([])
@@ -46,7 +50,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         throw new Error('The exam time window has already closed. Please contact your invigilator.')
       }
 
-      // 1. Check for existing attempt (refresh recovery)
+      // 1. Check for existing attempts (refresh recovery / retry detection)
       const { data: existing } = await supabase.rpc('get_my_attempt', {
         p_batch_id:     batchId,
         p_roll_number:  rollNumber,
@@ -54,17 +58,73 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       })
 
       let currentAttemptId
+      let currentAttemptNumber = 1
 
       if (existing && existing.length > 0) {
-        const attempt = existing[0]
-        if (attempt.submitted_at) {
-          setResult({ alreadySubmitted: true })
-          setStatus('submitted')
-          return
+        // existing[0] is the latest attempt (ordered by attempt_number DESC)
+        const latest = existing[0]
+
+        if (latest.submitted_at) {
+          if (forceNewAttempt) {
+            // Retry flow: create a new attempt
+            currentAttemptNumber = existing.length + 1
+
+            const { data: newAttemptId, error: insertError } = await supabase
+              .rpc('create_attempt', {
+                p_batch_id:     batchId,
+                p_roll_number:  rollNumber,
+                p_student_name: studentName,
+                p_email:        email || null,
+                p_access_code:  accessCode || null,
+              })
+
+            if (insertError) {
+              if (insertError.message?.includes('Maximum attempts reached')) {
+                throw new Error('You have used all available attempts for this exam.')
+              }
+              if (insertError.code === '23505' || insertError.message?.includes('already been registered')) {
+                throw new Error('This roll number has already been registered for this exam.')
+              }
+              throw insertError
+            }
+            currentAttemptId = newAttemptId
+          } else {
+            // Not a retry — show the latest submitted result
+            const showResults = batch.show_results !== false
+            const pct = (showResults && latest.score != null && latest.total_questions > 0)
+              ? Math.round((latest.score / latest.total_questions) * 100) : null
+            const passPercentage = batch.pass_percentage ?? null
+            const attemptNum = latest.attempt_number ?? 1
+            const maxAttempts = batch.max_attempts ?? 1
+            const canRetry = (
+              attemptNum < maxAttempts
+              && passPercentage != null
+              && pct != null
+              && pct < passPercentage
+              && batch.status === 'active'
+            )
+
+            setResult({
+              alreadySubmitted: true,
+              score: showResults ? latest.score : null,
+              total: latest.total_questions,
+              percentage: pct,
+              showResults,
+              passPercentage,
+              canRetry,
+              attemptNumber: attemptNum,
+              maxAttempts,
+            })
+            setStatus('submitted')
+            return
+          }
+        } else {
+          // Latest attempt is unsubmitted — resume it
+          currentAttemptNumber = latest.attempt_number ?? 1
+          currentAttemptId = latest.id
         }
-        currentAttemptId = attempt.id
       } else {
-        // Create new attempt via server-side RPC (enforces access code + unique constraint)
+        // No existing attempts — create first one
         const { data: newAttemptId, error: insertError } = await supabase
           .rpc('create_attempt', {
             p_batch_id:     batchId,
@@ -104,14 +164,14 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         throw new Error('No questions found for this exam. Please contact your invigilator.')
       }
 
-      // 4. Deterministic shuffle
+      // 4. Deterministic shuffle (seed includes attemptNumber for unique questions per retry)
       const shuffled = selectAndShuffleQuestions(
-        rawQuestions, rollNumber, batchId, batch.questions_per_student ?? null
+        rawQuestions, rollNumber, batchId, batch.questions_per_student ?? null, currentAttemptNumber
       )
       setQuestions(shuffled)
 
       // 5. Recover previous answers on refresh (ownership-verified)
-      if (existing && existing.length > 0) {
+      if (existing && existing.length > 0 && !existing[0].submitted_at) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id:   currentAttemptId,
           p_roll_number:  rollNumber,
@@ -132,7 +192,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       setError(formatDbError(err, 'Failed to start exam. Please try again.'))
       setStatus('error')
     }
-  }, [batch, batchId, rollNumber, studentName, email, accessCode])
+  }, [batch, batchId, rollNumber, studentName, email, accessCode, forceNewAttempt])
 
   useEffect(() => {
     if (!batch || !rollNumber || !studentName) return
@@ -218,9 +278,21 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         p_session_token: sessionTokenRef.current,
       })
       if (error) throw error
-      const { score, total_questions: total } = data[0]
-      const pct = total > 0 ? Math.round((score / total) * 100) : 0
-      setResult({ score, total, percentage: pct })
+
+      const row = data[0]
+      const pct = (row.score != null && row.total_questions > 0)
+        ? Math.round((row.score / row.total_questions) * 100) : null
+
+      setResult({
+        score: row.score,
+        total: row.total_questions,
+        percentage: pct,
+        showResults: row.show_results,
+        passPercentage: row.pass_percentage,
+        attemptNumber: row.attempt_number,
+        maxAttempts: row.max_attempts,
+        canRetry: row.can_retry,
+      })
       setStatus('submitted')
     } catch (err) {
       console.error('Submission error:', err)
