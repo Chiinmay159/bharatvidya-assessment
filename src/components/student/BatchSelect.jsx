@@ -72,11 +72,11 @@ export function BatchSelect({ onSelectBatch }) {
           {/* Brand bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
             <img src="/logo.png" alt="BharatVidya" style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, boxShadow: '0 0 0 2px rgba(255,255,255,.2)' }} />
-            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.8)', fontSize: 15, letterSpacing: '-.1px' }}>
+            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.7)', fontSize: 15, letterSpacing: '-.1px' }}>
               BharatVidya Exams
             </span>
           </div>
-          <h1 className="hero-title" style={{ margin: '0 0 8px', fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-.6px', lineHeight: 1.15 }}>
+          <h1 className="hero-title" style={{ margin: '0 0 8px', fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#fff', letterSpacing: '-.6px', lineHeight: 1.15 }}>
             Select your exam
           </h1>
           <p style={{ margin: 0, color: 'rgba(255,255,255,.58)', fontSize: 15, lineHeight: 1.55 }}>
@@ -170,38 +170,27 @@ export function BatchSelect({ onSelectBatch }) {
               const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
 
               return (
-                <button key={batch.id} className="batch-card" aria-label={`Select exam: ${batch.name}`} onClick={() => onSelectBatch(batch)}>
-                  <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                    {/* Left accent stripe */}
-                    <div style={{
-                      width: 4, flexShrink: 0,
-                      background: isLive ? 'var(--success)' : 'var(--accent)',
-                      borderRadius: '11px 0 0 11px',
-                    }} />
-
-                    <div className="batch-card-inner" style={{ flex: 1, padding: '18px 20px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-1)', marginBottom: 5, letterSpacing: '-.15px' }}>
-                            {batch.name}
-                          </div>
-                          <div style={{ fontSize: 13, color: 'var(--text-2)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '3px 8px' }}>
-                            <span>{dateStr} · {timeStr} IST</span>
-                            <Dot />
-                            <span>{batch.duration_minutes} min</span>
-                            {batch.questions_per_student && (
-                              <><Dot /><span>{batch.questions_per_student} questions</span></>
-                            )}
-                          </div>
-                          {batch.has_access_code && (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
-                              <LockIcon /> Access code required
-                            </div>
-                          )}
-                        </div>
-                        <LiveBadge live={isLive} />
+                <button key={batch.id} className="batch-card" aria-label={`Select exam: ${batch.name}`} onClick={() => onSelectBatch(batch)} style={{ padding: '18px 20px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-1)', marginBottom: 5, letterSpacing: '-.15px' }}>
+                        {batch.name}
                       </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-2)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '3px 8px' }}>
+                        <span>{dateStr} · {timeStr} IST</span>
+                        <Dot />
+                        <span>{batch.duration_minutes} min</span>
+                        {batch.questions_per_student && (
+                          <><Dot /><span>{batch.questions_per_student} questions</span></>
+                        )}
+                      </div>
+                      {batch.has_access_code && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
+                          <LockIcon /> Access code required
+                        </div>
+                      )}
                     </div>
+                    <LiveBadge live={isLive} />
                   </div>
                 </button>
               )
@@ -220,11 +209,11 @@ function LiveBadge({ live }) {
     <span style={{
       flexShrink: 0,
       display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '4px 10px', borderRadius: 'var(--radius-pill)',
+      padding: '4px 10px', borderRadius: 'var(--radius-md)',
       fontSize: 12, fontWeight: 600,
       background: live ? 'var(--success-lt)' : 'var(--accent-lt)',
       color: live ? 'var(--success)' : 'var(--accent)',
-      border: `1px solid ${live ? '#A7F3D0' : 'var(--accent-md)'}`,
+      border: `1px solid ${live ? 'var(--success)' : 'var(--accent-md)'}`,
     }}>
       {live && (
         <span

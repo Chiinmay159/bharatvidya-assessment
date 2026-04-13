@@ -132,7 +132,7 @@ function WarningIcon() {
 
 const pageStyle = {
   minHeight: '100vh',
-  background: 'linear-gradient(160deg, #F8FAFC 0%, #EEF2FF 60%, #F8FAFC 100%)',
+  background: 'var(--bg)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px',
 }
 const cardStyle = {

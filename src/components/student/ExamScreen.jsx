@@ -117,7 +117,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     return (
       <div style={centerFlex}>
         <div className="card" style={{ maxWidth: 400, padding: '40px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
+          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconLock /></div>
           <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700 }}>Exam open in another window</h2>
           <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
             Only one active session is allowed per student. Close all other tabs with this exam, then refresh.
@@ -138,7 +138,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
             {remainingFormatted}
             {isUrgent && <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--error)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Time running low</span>}
           </div>
-          <div style={{ fontSize: 44, marginBottom: 16 }}>📡</div>
+          <div style={{ ...iconWrap, background: 'var(--warn-lt)', border: '1px solid var(--border)', color: 'var(--warn)' }}><IconSignal /></div>
           <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
             Some answers couldn't be saved
           </h2>
@@ -189,7 +189,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     return (
       <div style={{ ...centerFlex, padding: 20 }}>
         <div className="card" style={{ maxWidth: 380, padding: '32px 28px', textAlign: 'center' }}>
-          <div style={{ fontSize: 36, marginBottom: 14 }}>⚠️</div>
+          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconAlert /></div>
           <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 16 }}>Something went wrong</p>
           <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6 }}>{error}</p>
         </div>
@@ -201,7 +201,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     return (
       <div style={centerFlex}>
         <div className="card" style={{ maxWidth: 380, padding: '32px 28px', textAlign: 'center' }}>
-          <div style={{ fontSize: 36, marginBottom: 14 }}>⚠️</div>
+          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconAlert /></div>
           <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 16 }}>No questions available</p>
           <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>Please contact your invigilator.</p>
         </div>
@@ -374,7 +374,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
       {/* ── Confirm submit modal ─────────────────────────────── */}
       {showConfirm && (
         <FocusTrapModal ariaLabel="Confirm exam submission" onClose={() => setShowConfirm(false)}>
-          <div style={{ fontSize: 36, marginBottom: 14 }}>📋</div>
+          <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '1px solid var(--border)', color: 'var(--accent-deep)' }}><IconClipboard /></div>
           <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, letterSpacing: '-.2px' }}>Submit your exam?</h2>
           <p style={{ margin: '0 0 6px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6 }}>
             You are about to submit. This action cannot be undone.
@@ -409,7 +409,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
       {/* ── Time-up overlay ─────────────────────────────────── */}
       {isExpired && status !== 'submitting' && (
         <FocusTrapModal ariaLabel="Time is up" closeOnBackdrop={false}>
-          <div style={{ fontSize: 44, marginBottom: 14 }}>⏰</div>
+          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconClock /></div>
           <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Time's up!</h2>
           <p style={{ margin: '0 0 20px', color: 'var(--text-2)', fontSize: 14 }}>Submitting your answers…</p>
           <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="var(--accent)" /></div>
@@ -419,6 +419,54 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
   )
 }
 
+/* ── SVG icon components ────────────────────────────────── */
+
+function IconLock() {
+  return (
+    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconSignal() {
+  return (
+    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M1.42 9a16 16 0 0 1 21.16 0" strokeLinecap="round" /><path d="M5 12.55a11 11 0 0 1 14.08 0" strokeLinecap="round" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" strokeLinecap="round" /><circle cx="12" cy="20" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+function IconAlert() {
+  return (
+    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round" /><line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconClipboard() {
+  return (
+    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" strokeLinecap="round" strokeLinejoin="round" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    </svg>
+  )
+}
+
+function IconClock() {
+  return (
+    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /* ── Sub-components ──────────────────────────────────────── */
 
 const centerFlex = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+
+const iconWrap = {
+  width: 56, height: 56, borderRadius: '50%',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  margin: '0 auto 18px',
+}
