@@ -9,14 +9,22 @@
  *
  * Called from admin UI via:
  *   supabase.functions.invoke('email-results', { body: { batch_id: '...' } })
+ *
+ * Security:
+ *   - Requires a valid JWT in the Authorization header
+ *   - Caller must be the admin (verified via is_admin() RPC)
+ *   - CORS restricted to app origin
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://bharatvidya-assessment.vercel.app'
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
@@ -24,14 +32,47 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const anonKey     = Deno.env.get('SUPABASE_ANON_KEY')!
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')!
+
+    // ── Auth: verify caller is admin ───────────────────────
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Missing or invalid Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Create a user-scoped client with the caller's JWT
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+
+    // Verify admin status via the is_admin() RPC
+    const { data: isAdmin, error: adminErr } = await userClient.rpc('is_admin')
+    if (adminErr || !isAdmin) {
+      return new Response(JSON.stringify({ error: 'Unauthorized. Admin access required.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // ── Payload ────────────────────────────────────────────
     const { batch_id } = await req.json()
     if (!batch_id) throw new Error('batch_id is required')
 
-    const supabaseUrl  = Deno.env.get('SUPABASE_URL')!
-    const serviceKey   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')!
-
+    // Use service-role client for data operations
     const supabase = createClient(supabaseUrl, serviceKey)
 
     // Fetch batch details
@@ -69,9 +110,9 @@ serve(async (req) => {
           <div style="background: #f8fafc; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px;">
             <p style="margin: 0 0 8px;"><strong>Name:</strong> ${attempt.student_name}</p>
             <p style="margin: 0 0 8px;"><strong>Roll Number:</strong> ${attempt.roll_number}</p>
-            <p style="margin: 0 0 8px;"><strong>Score:</strong> ${attempt.score ?? '—'} / ${attempt.total_questions ?? '—'}</p>
+            <p style="margin: 0 0 8px;"><strong>Score:</strong> ${attempt.score ?? '\u2014'} / ${attempt.total_questions ?? '\u2014'}</p>
             <p style="margin: 0 0 8px;"><strong>Percentage:</strong> ${pct}%</p>
-            <p style="margin: 0;"><strong>Status:</strong> ${pct >= 60 ? '✅ Passed' : '❌ Not cleared'}</p>
+            <p style="margin: 0;"><strong>Status:</strong> ${pct >= 60 ? '\u2705 Passed' : '\u274C Not cleared'}</p>
           </div>
           <p style="color: #94a3b8; font-size: 13px;">This is an automated result notification from BharatVidya.</p>
         </div>
@@ -99,12 +140,12 @@ serve(async (req) => {
       }
     }
 
-    // Log to audit_log
+    // Log to audit_log via service-role
     await supabase.from('audit_log').insert({
       action: 'results_emailed',
       entity: 'batch',
       entity_id: batch_id,
-      actor: 'system',
+      actor: 'admin',
       details: { sent, errors: errors.length, batch_name: batch.name },
     })
 

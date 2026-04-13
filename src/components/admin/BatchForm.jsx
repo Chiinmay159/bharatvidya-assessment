@@ -67,24 +67,34 @@ export function BatchForm({ batch, onSaved, onCancel }) {
     <form onSubmit={handleSubmit} style={{ maxWidth: 520 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
+        {locked && (
+          <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '10px 14px', color: '#9A3412', fontSize: 13, lineHeight: 1.5 }}>
+            This batch is <strong>{batch?.status}</strong>. Schedule, duration, and access code are locked to prevent mid-exam changes.
+          </div>
+        )}
+
         <Field label="Batch Name" required>
           <input value={form.name} onChange={e => set('name', e.target.value)} required
+            disabled={locked}
             placeholder="e.g. Batch A – Morning Session"
-            style={inputStyle} />
+            style={{ ...inputStyle, ...(locked && lockedStyle) }} />
         </Field>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <Field label="Date" required>
-            <input type="date" value={form.scheduled_date} onChange={e => set('scheduled_date', e.target.value)} required style={inputStyle} />
+          <Field label="Date" required hint={locked ? 'Locked while exam is active.' : undefined}>
+            <input type="date" value={form.scheduled_date} onChange={e => set('scheduled_date', e.target.value)}
+              required disabled={locked} style={{ ...inputStyle, ...(locked && lockedStyle) }} />
           </Field>
-          <Field label="Time" required>
-            <input type="time" value={form.scheduled_time} onChange={e => set('scheduled_time', e.target.value)} required style={inputStyle} />
+          <Field label="Time" required hint={locked ? 'Locked while exam is active.' : undefined}>
+            <input type="time" value={form.scheduled_time} onChange={e => set('scheduled_time', e.target.value)}
+              required disabled={locked} style={{ ...inputStyle, ...(locked && lockedStyle) }} />
           </Field>
         </div>
 
-        <Field label="Duration (minutes)" required>
-          <input type="number" min="1" value={form.duration_minutes} onChange={e => set('duration_minutes', e.target.value)} required
-            placeholder="e.g. 60" style={{ ...inputStyle, maxWidth: 160 }} />
+        <Field label="Duration (minutes)" required hint={locked ? 'Locked while exam is active.' : undefined}>
+          <input type="number" min="1" value={form.duration_minutes} onChange={e => set('duration_minutes', e.target.value)}
+            required disabled={locked}
+            placeholder="e.g. 60" style={{ ...inputStyle, maxWidth: 160, ...(locked && lockedStyle) }} />
         </Field>
 
         <Field
@@ -94,21 +104,22 @@ export function BatchForm({ batch, onSaved, onCancel }) {
           <input type="number" min="1" value={form.questions_per_student} onChange={e => set('questions_per_student', e.target.value)}
             disabled={locked}
             placeholder="e.g. 50  (leave blank = all)"
-            style={{ ...inputStyle, maxWidth: 220, opacity: locked ? .5 : 1, cursor: locked ? 'not-allowed' : 'auto' }} />
+            style={{ ...inputStyle, maxWidth: 220, ...(locked && lockedStyle) }} />
         </Field>
 
         {/* 2.2 Access code */}
         <Field
           label="Access Code (optional)"
-          hint="4–6 alphanumeric characters. If set, students must enter this to enter the exam."
+          hint={locked ? 'Locked while exam is active.' : '4\u20136 alphanumeric characters. If set, students must enter this to enter the exam.'}
         >
           <input
             type="text"
             value={form.access_code}
             onChange={e => set('access_code', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
             maxLength={6}
+            disabled={locked}
             placeholder="e.g. ABC123"
-            style={{ ...inputStyle, maxWidth: 180, fontFamily: 'var(--font-mono)', letterSpacing: '.1em' }}
+            style={{ ...inputStyle, maxWidth: 180, fontFamily: 'var(--font-mono)', letterSpacing: '.1em', ...(locked && lockedStyle) }}
           />
         </Field>
 
@@ -162,3 +173,4 @@ const btnSecondary = {
   border: '1px solid var(--border-md)', color: 'var(--text-2)',
   fontSize: 14, fontWeight: 500,
 }
+const lockedStyle = { opacity: 0.5, cursor: 'not-allowed', background: '#F8FAFC' }

@@ -27,9 +27,11 @@ export function useExamState({ batch, rollNumber, studentName, email }) {
     try {
       setStatus('loading')
 
-      // Guard: block entry if exam window has already closed
+      // Guard: block entry if exam window has already closed (using server time)
+      const { data: serverTimeData } = await supabase.rpc('get_server_time')
+      const serverNow = serverTimeData ? new Date(serverTimeData).getTime() : Date.now()
       const examEndMs = new Date(batch.scheduled_start).getTime() + batch.duration_minutes * 60 * 1000
-      if (Date.now() > examEndMs) {
+      if (serverNow > examEndMs) {
         throw new Error('The exam time window has already closed. Please contact your invigilator.')
       }
 
