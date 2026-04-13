@@ -34,6 +34,7 @@ export function ActivityLog({ onBack }) {
   const [loading,   setLoading]   = useState(true)
   const [filter,    setFilter]    = useState('all')
   const [page,      setPage]      = useState(0)
+  const [hasMore,   setHasMore]   = useState(true)
   const PAGE_SIZE = 50
 
   useEffect(() => {
@@ -51,8 +52,10 @@ export function ActivityLog({ onBack }) {
       }
       const { data } = await query
       if (!cancelled) {
+        const fetched = data || []
         // Append on pagination, replace on filter change (page resets to 0)
-        setEvents(prev => page === 0 ? (data || []) : [...prev, ...(data || [])])
+        setEvents(prev => page === 0 ? fetched : [...prev, ...fetched])
+        setHasMore(fetched.length === PAGE_SIZE)
         setLoading(false)
       }
     }
@@ -142,7 +145,7 @@ export function ActivityLog({ onBack }) {
       )}
 
       {/* Pagination */}
-      {events.length === PAGE_SIZE && (
+      {hasMore && !loading && events.length > 0 && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <button onClick={() => setPage(p => p + 1)} style={btnSecondary}>Load more</button>
         </div>

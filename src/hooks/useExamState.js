@@ -15,9 +15,10 @@ import { formatDbError } from '../lib/errors'
  * - get_my_responses requires roll_number + student_name for ownership
  * - UNIQUE(attempt_id, question_id) on responses prevents score tampering
  * - UNIQUE(batch_id, roll_number) on attempts prevents duplicate attempts
+ * - Session tokens enforced via claim_session/check_session RPCs
  */
 export function useExamState({ batch, rollNumber, studentName, email, accessCode }) {
-  const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'submitted' | 'error'
+  const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
   const [attemptId,    setAttemptId]    = useState(null)
   const [questions,    setQuestions]    = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -25,7 +26,9 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
   const [result,       setResult]       = useState(null)
   const [error,        setError]        = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
+  const [unsavedCount, setUnsavedCount] = useState(0)
   const failedQueueRef = useRef([]) // { questionId, originalLabel, attemptId }
+  const sessionTokenRef = useRef(null)
 
   const batchId = batch?.id
 
@@ -81,7 +84,16 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
 
       setAttemptId(currentAttemptId)
 
-      // 2. Fetch questions via RPC — correct_answer stripped server-side
+      // 2. Claim session token (invalidates any prior window's token)
+      const { data: token, error: sessionErr } = await supabase.rpc('claim_session', {
+        p_attempt_id:   currentAttemptId,
+        p_roll_number:  rollNumber,
+        p_student_name: studentName,
+      })
+      if (sessionErr) throw sessionErr
+      sessionTokenRef.current = token
+
+      // 3. Fetch questions via RPC — correct_answer stripped server-side
       const { data: rawQuestions, error: qError } = await supabase
         .rpc('get_exam_questions', { p_batch_id: batchId })
       if (qError) throw qError
@@ -90,13 +102,13 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         throw new Error('No questions found for this exam. Please contact your invigilator.')
       }
 
-      // 3. Deterministic shuffle
+      // 4. Deterministic shuffle
       const shuffled = selectAndShuffleQuestions(
         rawQuestions, rollNumber, batchId, batch.questions_per_student ?? null
       )
       setQuestions(shuffled)
 
-      // 4. Recover previous answers on refresh (ownership-verified)
+      // 5. Recover previous answers on refresh (ownership-verified)
       if (existing && existing.length > 0) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id:   currentAttemptId,
@@ -125,6 +137,26 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     initExam()
   }, [batch, rollNumber, studentName, email, accessCode, initExam])
 
+  // Session heartbeat — detect when another window claims the session
+  useEffect(() => {
+    if (!attemptId || !sessionTokenRef.current || status !== 'ready') return
+    const interval = setInterval(async () => {
+      try {
+        const { data: valid } = await supabase.rpc('check_session', {
+          p_attempt_id:    attemptId,
+          p_session_token: sessionTokenRef.current,
+        })
+        if (valid === false) {
+          setError('This exam is already open in another window. Close that tab and refresh to continue.')
+          setStatus('error')
+        }
+      } catch {
+        // Network error — don't kick the student out
+      }
+    }, 15_000)
+    return () => clearInterval(interval)
+  }, [attemptId, status])
+
   /** Drain the failed queue before final submission. */
   const drainFailedQueue = useCallback(async () => {
     const queue = [...failedQueueRef.current]
@@ -148,7 +180,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     setPendingCount(remaining.length)
   }, [])
 
-  const finalizeSubmission = useCallback(async () => {
+  const finalizeSubmission = useCallback(async ({ force = false } = {}) => {
     if (!attemptId) return
     setStatus('submitting')
     try {
@@ -160,8 +192,14 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       }
 
       const unsaved = failedQueueRef.current.length
+      if (unsaved > 0 && !force) {
+        // Let the student decide: retry or submit with missing answers
+        setUnsavedCount(unsaved)
+        setStatus('unsaved_warning')
+        return
+      }
       if (unsaved > 0) {
-        console.warn(`Submitting with ${unsaved} unsaved answer(s)`)
+        console.warn(`Force-submitting with ${unsaved} unsaved answer(s)`)
       }
 
       const { data, error } = await supabase.rpc('submit_exam', { p_attempt_id: attemptId })
@@ -222,12 +260,18 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
   }, [questions, currentIndex, attemptId, finalizeSubmission])
 
   /**
-   * Auto-submit on timer expiry.
+   * Auto-submit on timer expiry — always forces even with unsaved answers.
    */
   const autoSubmit = useCallback(async () => {
     if (status === 'submitting' || status === 'submitted') return
-    await finalizeSubmission()
+    await finalizeSubmission({ force: true })
   }, [status, finalizeSubmission])
+
+  /** Retry submission (drain failed queue again, warn if still unsaved). */
+  const retrySubmit = useCallback(() => finalizeSubmission(), [finalizeSubmission])
+
+  /** Force-submit accepting that unsaved answers will be lost. */
+  const forceSubmit = useCallback(() => finalizeSubmission({ force: true }), [finalizeSubmission])
 
   const currentQuestion = questions[currentIndex] ?? null
   const totalQuestions  = questions.length
@@ -242,8 +286,11 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     result,
     error,
     pendingCount,
+    unsavedCount,
     submitAnswer,
     autoSubmit,
+    retrySubmit,
+    forceSubmit,
   }
 }
 

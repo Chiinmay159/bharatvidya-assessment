@@ -16,10 +16,9 @@ export function BatchSelect({ onSelectBatch }) {
     async function fetchBatches() {
       const { data, error } = await supabase
         .from('batches')
-        // NOTE: access_code intentionally excluded — never expose raw codes to client
-        // TODO: add a `has_access_code` generated column or database view to restore
-        //       the "Access code required" badge without leaking the actual code value
-        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student')
+        // access_code is hidden via column-level REVOKE; has_access_code is a
+        // server-side generated boolean so the client never sees the real code
+        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, has_access_code')
         .in('status', ['scheduled', 'active'])
         .order('scheduled_start', { ascending: true })
 
@@ -194,8 +193,11 @@ export function BatchSelect({ onSelectBatch }) {
                               <><Dot /><span>{batch.questions_per_student} questions</span></>
                             )}
                           </div>
-                          {/* TODO: restore "Access code required" badge once has_access_code
-                                   column or view is available (see BatchSelect fetch TODO) */}
+                          {batch.has_access_code && (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
+                              <LockIcon /> Access code required
+                            </div>
+                          )}
                         </div>
                         <LiveBadge live={isLive} />
                       </div>

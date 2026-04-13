@@ -13,8 +13,11 @@
 --   5. security_review_fixes     (2026-04-13) — close answer-key leak,
 --      attempt enumeration, response injection, access-code enforcement,
 --      unique constraints, tab-switch UPDATE, ownership on get_my_responses
+--   6. security_findings_round2  (2026-04-13) — column-level REVOKE on
+--      access_code, has_access_code generated column, session-token
+--      enforcement via claim_session/check_session RPCs
 --
--- Minimum frontend version: commit after 005 migration
+-- Minimum frontend version: commit after 006 migration
 -- ================================================================
 
 
@@ -64,7 +67,8 @@ CREATE TABLE IF NOT EXISTS public.batches (
   created_by           uuid REFERENCES auth.users(id),
   questions_per_student int CHECK (questions_per_student > 0),
   created_at           timestamptz NOT NULL DEFAULT now(),
-  access_code          text
+  access_code          text,
+  has_access_code      boolean GENERATED ALWAYS AS (access_code IS NOT NULL AND access_code != '') STORED
 );
 ALTER TABLE public.batches ENABLE ROW LEVEL SECURITY;
 
@@ -146,6 +150,13 @@ ALTER TABLE public.tab_switches ENABLE ROW LEVEL SECURITY;
 -- ================================================================
 
 -- 2.1 Batches
+-- Column-level grant: anon can SELECT all columns EXCEPT access_code
+REVOKE ALL ON public.batches FROM anon;
+GRANT SELECT (
+  id, name, scheduled_start, duration_minutes, status,
+  created_by, questions_per_student, created_at, has_access_code
+) ON public.batches TO anon;
+
 CREATE POLICY batches_select_public ON public.batches
   FOR SELECT TO anon
   USING (status IN ('scheduled','active','completed'));
@@ -545,3 +556,49 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 REVOKE ALL ON FUNCTION public.check_roster_access(uuid[], text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.check_roster_access(uuid[], text) TO anon, authenticated;
+
+-- 4.12 Claim session token (rotates atomically; invalidates prior sessions)
+CREATE OR REPLACE FUNCTION public.claim_session(
+  p_attempt_id   uuid,
+  p_roll_number  text,
+  p_student_name text
+)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_token uuid;
+BEGIN
+  v_token := gen_random_uuid();
+  UPDATE public.attempts
+  SET session_token = v_token
+  WHERE id           = p_attempt_id
+    AND roll_number  = p_roll_number
+    AND student_name = p_student_name
+    AND submitted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Cannot claim session — attempt not found or already submitted';
+  END IF;
+
+  RETURN v_token;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.claim_session(uuid, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_session(uuid, text, text) TO anon, authenticated;
+
+-- 4.13 Check session validity (returns false when another window claimed a newer token)
+CREATE OR REPLACE FUNCTION public.check_session(
+  p_attempt_id    uuid,
+  p_session_token uuid
+)
+RETURNS boolean
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.attempts
+    WHERE id            = p_attempt_id
+      AND session_token = p_session_token
+      AND submitted_at  IS NULL
+  );
+$$;
+REVOKE ALL ON FUNCTION public.check_session(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.check_session(uuid, uuid) TO anon, authenticated;

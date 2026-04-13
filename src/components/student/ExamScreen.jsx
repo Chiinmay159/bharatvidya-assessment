@@ -15,7 +15,8 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
 
   const {
     status, currentQuestion, currentIndex, totalQuestions,
-    attemptId, result, error, pendingCount, submitAnswer, autoSubmit,
+    attemptId, result, error, pendingCount, unsavedCount,
+    submitAnswer, autoSubmit, retrySubmit, forceSubmit,
   } = useExamState({ batch, rollNumber, studentName, email, accessCode })
 
   const isLastQuestion = currentIndex === totalQuestions - 1
@@ -117,6 +118,35 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
           <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700 }}>Exam open in another window</h2>
           <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
             Only one active session is allowed per student. Close all other tabs with this exam, then refresh.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Unsaved answers warning ──────────────────────────────── */
+  if (status === 'unsaved_warning') {
+    return (
+      <div style={centerFlex}>
+        <div className="card" style={{ maxWidth: 420, padding: '36px 28px', textAlign: 'center' }}>
+          <div style={{ fontSize: 44, marginBottom: 16 }}>📡</div>
+          <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
+            Some answers couldn't be saved
+          </h2>
+          <p style={{ margin: '0 0 24px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
+            {unsavedCount} answer{unsavedCount !== 1 ? 's' : ''} failed to save due to connectivity issues.
+            Check your connection and retry, or submit without {unsavedCount === 1 ? 'it' : 'them'}.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={retrySubmit} className="btn btn-primary" style={{ flex: 1, padding: '12px 16px' }}>
+              Retry
+            </button>
+            <button onClick={forceSubmit} className="btn btn-secondary" style={{ flex: 1, padding: '12px 16px' }}>
+              Submit anyway
+            </button>
+          </div>
+          <p style={{ margin: '14px 0 0', color: 'var(--text-3)', fontSize: 12 }}>
+            Submitting anyway may reduce your score by up to {unsavedCount} point{unsavedCount !== 1 ? 's' : ''}.
           </p>
         </div>
       </div>
