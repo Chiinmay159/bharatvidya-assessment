@@ -3,7 +3,6 @@ import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { generateCsv, downloadCsv } from '../../lib/csv'
 import { formatInTimeZone } from 'date-fns-tz'
-import { FocusTrapModal } from '../shared/FocusTrapModal'
 
 import { ResultsSummaryBar } from './ResultsSummaryBar'
 import { ResultsAnalytics } from './ResultsAnalytics'
@@ -11,6 +10,7 @@ import { ResultsTable } from './ResultsTable'
 import { ExportConfigModal } from './ExportConfigModal'
 import { EmailConfirmModal } from './EmailConfirmModal'
 import { ResetBatchModal } from './ResetBatchModal'
+import { DeleteAttemptModal } from './ResultsModals'
 
 /* ── Column definitions for configurable export (3.6) ─── */
 const BASE_COLUMNS = [
@@ -38,7 +38,7 @@ function saveExportConfig(config) {
   localStorage.setItem('bv_export_cols', JSON.stringify(config))
 }
 
-export function ResultsView({ batch, onBack }) {
+export function ResultsView({ batch, onBack, onViewAnalytics, onViewCertificates }) {
   const [attempts,     setAttempts]     = useState([])
   const [questions,    setQuestions]    = useState([])
   const [responses,    setResponses]    = useState([])
@@ -348,13 +348,21 @@ export function ResultsView({ batch, onBack }) {
           />
 
           {/* 2.3 Analytics toggle */}
-          <button
-            onClick={() => setShowAnalytics(v => !v)}
-            style={{ ...btnSecondary, marginBottom: 16 }}
-            className="no-print"
-          >
-            {showAnalytics ? '\u25B2 Hide Analytics' : '\u25BC Show Analytics'}
-          </button>
+          <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <button onClick={() => setShowAnalytics(v => !v)} style={btnSecondary}>
+              {showAnalytics ? '\u25B2 Hide Analytics' : '\u25BC Show Analytics'}
+            </button>
+            {onViewAnalytics && (
+              <button onClick={onViewAnalytics} style={btnSecondary}>
+                Item analysis &amp; integrity report \u2192
+              </button>
+            )}
+            {onViewCertificates && (
+              <button onClick={onViewCertificates} style={btnSecondary}>
+                Certificates \u2192
+              </button>
+            )}
+          </div>
 
           {showAnalytics && (
             <ResultsAnalytics histogram={histogram} hardest={hardest} easiest={easiest} />
@@ -396,20 +404,15 @@ export function ResultsView({ batch, onBack }) {
 
       {/* ── Delete single attempt modal ───────────────── */}
       {confirmDelete && (
-        <FocusTrapModal ariaLabel="Confirm delete attempt" onClose={() => setConfirmDelete(null)}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>&#x1F5D1;&#xFE0F;</div>
-          <h3 style={modalTitle}>Delete attempt?</h3>
-          <p style={modalBody}>
-            <strong>{confirmDelete.student_name}</strong> ({confirmDelete.roll_number}) will be able to retake the exam. Their responses and score will be permanently deleted.
-          </p>
-          {actionError && <p style={{ color: 'var(--error)', fontSize: 12, margin: '0 0 12px' }}>{actionError}</p>}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleDeleteAttempt} disabled={actionLoading} style={{ ...btnDestructive, flex: 1, opacity: actionLoading ? .6 : 1 }}>
-              {actionLoading ? 'Deleting\u2026' : 'Yes, delete'}
-            </button>
-            <button onClick={() => { setConfirmDelete(null); setActionError(null) }} disabled={actionLoading} style={{ ...btnSecondary, flex: 1 }}>Cancel</button>
-          </div>
-        </FocusTrapModal>
+        <DeleteAttemptModal
+          confirmDelete={confirmDelete}
+          actionError={actionError}
+          actionLoading={actionLoading}
+          onConfirm={handleDeleteAttempt}
+          onClose={() => setConfirmDelete(null)}
+          onCancel={() => { setConfirmDelete(null); setActionError(null) }}
+          btnSecondary={btnSecondary}
+        />
       )}
 
       {/* ── 3.5 Reset batch modal (double confirm) ────── */}
@@ -433,6 +436,3 @@ export function ResultsView({ batch, onBack }) {
 const backBtn = { all: 'unset', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 20 }
 const btnSecondary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border-md)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }
 const btnDanger = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '8px 14px', borderRadius: 8, background: 'var(--error-lt)', color: 'var(--error)', border: '1px solid #FECACA', fontSize: 13, fontWeight: 500 }
-const btnDestructive = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 16px', borderRadius: 8, background: 'var(--error)', color: '#fff', fontSize: 13, fontWeight: 600 }
-const modalTitle = { margin: '0 0 10px', fontSize: 17, fontWeight: 700, color: 'var(--text-1)' }
-const modalBody  = { margin: '0 0 20px', fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6 }

@@ -1,5 +1,7 @@
 # BharatVidya Assessment Platform
 
+See [PRODUCT-DOCUMENT.md](./PRODUCT-DOCUMENT.md) for the full product document, feature set, UX spec, architecture, and security model.
+
 Online exam tool for BharatVidya. Supports rostered/open batches, timed MCQ exams, live proctoring signals (tab-switch tracking), admin dashboard with results analytics, and roster-gated entry.
 
 ## Stack

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { selectAndShuffleQuestions } from '../seed.js'
+import { selectAndShuffleQuestions } from '../seed'
 
 /** Helper: create a minimal question pool sorted by sort_order */
 function makeQuestions(count) {

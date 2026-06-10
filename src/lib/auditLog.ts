@@ -1,15 +1,20 @@
-import { supabase, ADMIN_EMAIL } from './supabase'
+import { supabase } from './supabase'
+
+export interface AuditEventOptions {
+  action: string
+  entity: string
+  entityId?: string
+  details?: Record<string, unknown> | null
+}
 
 /**
  * Logs an admin event to the audit_log table.
  * Fire-and-forget — never throws, never blocks the main action.
- *
- * @param {{ action: string, entity: string, entityId?: string, details?: object }} opts
  */
-export async function logAuditEvent({ action, entity, entityId, details }) {
+export async function logAuditEvent({ action, entity, entityId, details }: AuditEventOptions): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession()
-    const actor = session?.user?.email || ADMIN_EMAIL
+    const actor = session?.user?.email || 'unknown'
     await supabase.from('audit_log').insert({
       action,
       entity,

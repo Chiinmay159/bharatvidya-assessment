@@ -64,6 +64,8 @@ export function StudentPage() {
   }
 
   function handleComplete(examResult) {
+    // Leave exam fullscreen once submitted (best-effort)
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
     setResult(examResult)
     setForceNewAttempt(false) // Reset after exam completes
     setStep('result')

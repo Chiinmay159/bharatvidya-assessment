@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { parseQuestionsCsv } from '../../lib/csv'
+import { ComposePaperModal } from './ComposePaperModal'
 
 export function QuestionUpload({ batch, onBack }) {
   const [preview, setPreview]           = useState(null)
@@ -9,6 +10,8 @@ export function QuestionUpload({ batch, onBack }) {
   const [uploadError, setUploadError]   = useState(null)
   const [existingCount, setExistingCount] = useState(0)
   const [success, setSuccess]           = useState(false)
+  const [showCompose, setShowCompose]   = useState(false)
+  const [composedMsg, setComposedMsg]   = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -80,6 +83,34 @@ export function QuestionUpload({ batch, onBack }) {
 
       {/* Success */}
       {success && <Alert type="success" text={`Upload complete — ${existingCount} questions are now in the bank.`} />}
+      {composedMsg && <Alert type="success" text={composedMsg} />}
+
+      {/* Compose from question bank (draft/scheduled batches only) */}
+      {['draft', 'scheduled'].includes(batch.status) && (
+        <div className="card" style={{ padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600 }}>Compose from question bank</h3>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
+              Build this paper from approved bank questions by topic and difficulty — no CSV needed.
+            </p>
+          </div>
+          <button onClick={() => setShowCompose(true)} className="btn btn-primary" style={{ padding: '9px 18px', flexShrink: 0 }}>
+            Compose paper
+          </button>
+        </div>
+      )}
+      {showCompose && (
+        <ComposePaperModal
+          batch={batch}
+          onClose={() => setShowCompose(false)}
+          onComposed={async (n) => {
+            setShowCompose(false)
+            setComposedMsg(`Composed ${n} question${n !== 1 ? 's' : ''} from the bank.`)
+            const { count } = await supabase.from('questions').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id)
+            setExistingCount(count ?? 0)
+          }}
+        />
+      )}
 
       {/* Upload card */}
       <div className="card" style={{ padding: '24px', marginBottom: 20 }}>

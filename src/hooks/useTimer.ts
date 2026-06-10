@@ -5,6 +5,28 @@ const FIVE_MINUTES_MS = 5 * 60 * 1000
 const POLL_INTERVAL_MS = 30_000
 const TICK_INTERVAL_MS = 1_000
 
+export type TimerSyncStatus = 'syncing' | 'synced' | 'fallback'
+
+export interface UseTimerOptions {
+  /** ISO timestamp (or anything Date can parse) of the scheduled exam start. */
+  scheduledStart: string | null | undefined
+  durationMinutes: number | null | undefined
+  onTimeUp?: () => void
+  onBatchEnded?: () => void
+  batchId?: string | null
+  enabled: boolean
+  /** Admin-granted per-attempt extension (minutes); extends the end time live. */
+  extraMinutes?: number
+}
+
+export interface UseTimerResult {
+  remainingMs: number | null
+  remainingFormatted: string
+  isUrgent: boolean
+  isExpired: boolean
+  syncStatus: TimerSyncStatus
+}
+
 /**
  * useTimer — server-synced countdown with batch status polling.
  *
@@ -15,16 +37,16 @@ const TICK_INTERVAL_MS = 1_000
  * - Polls batch status every 30s for early termination by admin.
  * - onTimeUp and onBatchEnded are guarded against double-fire.
  */
-export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnded, batchId, enabled }) {
-  const [remainingMs, setRemainingMs] = useState(null)
-  const [syncStatus, setSyncStatus] = useState('syncing') // 'syncing' | 'synced' | 'fallback'
+export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnded, batchId, enabled, extraMinutes = 0 }: UseTimerOptions): UseTimerResult {
+  const [remainingMs, setRemainingMs] = useState<number | null>(null)
+  const [syncStatus, setSyncStatus] = useState<TimerSyncStatus>('syncing') // 'syncing' | 'synced' | 'fallback'
 
   // Monotonic timer: immune to client clock changes.
   // After server sync, we record a performance.now() baseline and derived server ms.
   // On each tick: serverNow = baselineServerMs + (performance.now() - baselinePerf)
   const baselinePerfRef = useRef(0)
   const baselineServerMsRef = useRef(0)
-  const examEndTimeRef = useRef(null)
+  const examEndTimeRef = useRef<number | null>(null)
   const hasTriggeredRef = useRef(false)
   const onTimeUpRef = useRef(onTimeUp)
   const onBatchEndedRef = useRef(onBatchEnded)
@@ -33,12 +55,15 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
   useEffect(() => { onTimeUpRef.current = onTimeUp }, [onTimeUp])
   useEffect(() => { onBatchEndedRef.current = onBatchEnded }, [onBatchEnded])
 
-  // Compute exam end time whenever inputs change
+  // Compute exam end time whenever inputs change (incl. live extensions).
+  // An admin-granted extension also un-fires the expiry guard so a student
+  // extended *after* hitting zero resumes instead of staying expired.
   useEffect(() => {
     if (!scheduledStart || !durationMinutes) return
     const startMs = new Date(scheduledStart).getTime()
-    examEndTimeRef.current = startMs + durationMinutes * 60 * 1000
-  }, [scheduledStart, durationMinutes])
+    examEndTimeRef.current = startMs + (durationMinutes + extraMinutes) * 60 * 1000
+    if (extraMinutes > 0) hasTriggeredRef.current = false
+  }, [scheduledStart, durationMinutes, extraMinutes])
 
   // Fetch server time once and establish a monotonic baseline.
   // All subsequent ticks derive from performance.now() — immune to clock changes.
@@ -54,7 +79,7 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
         if (cancelled) return
         if (error || !data) throw new Error('Server time unavailable')
         const rtt = t2 - t1
-        const serverMs = new Date(data).getTime()
+        const serverMs = new Date(data as string).getTime()
         // Server captured time at ~t1 + rtt/2
         const estimatedServerNow = serverMs + rtt / 2
         // Record monotonic baseline
@@ -133,7 +158,7 @@ export function useTimer({ scheduledStart, durationMinutes, onTimeUp, onBatchEnd
   return { remainingMs, remainingFormatted, isUrgent, isExpired, syncStatus }
 }
 
-function formatTime(ms) {
+function formatTime(ms: number): string {
   const totalSeconds = Math.ceil(ms / 1000)
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60

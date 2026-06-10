@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, ADMIN_EMAIL } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { AdminLayout }      from '../components/admin/AdminLayout'
 import { AdminDashboard }   from '../components/admin/AdminDashboard'
 import { BatchList }        from '../components/admin/BatchList'
@@ -9,6 +9,11 @@ import { RosterUpload }     from '../components/admin/RosterUpload'
 import { ResultsView }      from '../components/admin/ResultsView'
 import { BulkBatchCreate }  from '../components/admin/BulkBatchCreate'
 import { ActivityLog }      from '../components/admin/ActivityLog'
+import { QuestionBank }     from '../components/admin/QuestionBank'
+import { BatchAnalytics }   from '../components/admin/BatchAnalytics'
+import { MissionControl }   from '../components/admin/MissionControl'
+import { CertificatesPanel } from '../components/admin/CertificatesPanel'
+import { StudentsView }     from '../components/admin/StudentsView'
 
 // Views: 'dashboard' | 'batches' | 'create-batch' | 'edit-batch' | 'bulk-create'
 //        'questions' | 'roster' | 'results' | 'activity-log'
@@ -21,28 +26,28 @@ export function AdminPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null
-      if (u && u.email !== ADMIN_EMAIL) {
+    // Authorization is role-based (admin_users table) — checked server-side
+    // via is_admin(). RLS enforces the real boundary; this gate is UX.
+    async function vetUser(u) {
+      if (!u) { setUser(null); return }
+      const { data: isAdmin } = await supabase.rpc('is_admin')
+      if (!isAdmin) {
         supabase.auth.signOut()
-        setAuthError('Access denied. Only the admin account may log in here.')
+        setAuthError('Access denied. This account is not an authorized admin.')
         setUser(null)
-      } else {
-        setUser(u)
+        return
       }
+      setAuthError(null)
+      setUser(u)
+    }
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      await vetUser(session?.user ?? null)
       setAuthLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user ?? null
-      if (u && u.email !== ADMIN_EMAIL) {
-        supabase.auth.signOut()
-        setAuthError('Access denied. Only the admin account may log in here.')
-        setUser(null)
-        return
-      }
-      setUser(u)
-      setAuthError(null)
+      vetUser(session?.user ?? null)
     })
 
     return () => subscription.unsubscribe()
@@ -98,7 +103,7 @@ export function AdminPage() {
           </button>
 
           <p style={{ margin: '18px 0 0', fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
-            Access limited to <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)', fontSize: 10 }}>chinmay@matramedia.co.in</strong>
+            Access limited to authorized admin accounts.
           </p>
         </div>
       </div>
@@ -119,6 +124,8 @@ export function AdminPage() {
   const navItems = [
     { label: 'Dashboard', active: view === 'dashboard',    onClick: goDashboard },
     { label: 'All Batches', active: view === 'batches',    onClick: goToBatches },
+    { label: 'Question Bank', active: view === 'question-bank', onClick: () => setView('question-bank') },
+    { label: 'Students', active: view === 'students', onClick: () => setView('students') },
     { label: 'Activity Log', active: view === 'activity-log', onClick: () => setView('activity-log') },
   ]
 
@@ -141,7 +148,12 @@ export function AdminPage() {
           onViewResults={handleViewResults}
           onManageQuestions={handleManageQuestions}
           onManageRoster={handleManageRoster}
+          onMissionControl={(batch) => { setSelectedBatch(batch); setView('mission-control') }}
         />
+      )}
+
+      {view === 'mission-control' && selectedBatch && (
+        <MissionControl batch={selectedBatch} onBack={goToBatches} />
       )}
 
       {view === 'create-batch' && (
@@ -179,7 +191,28 @@ export function AdminPage() {
       )}
 
       {view === 'results' && selectedBatch && (
-        <ResultsView batch={selectedBatch} onBack={goToBatches} />
+        <ResultsView
+          batch={selectedBatch}
+          onBack={goToBatches}
+          onViewAnalytics={() => setView('analytics')}
+          onViewCertificates={() => setView('certificates')}
+        />
+      )}
+
+      {view === 'analytics' && selectedBatch && (
+        <BatchAnalytics batch={selectedBatch} onBack={() => setView('results')} />
+      )}
+
+      {view === 'certificates' && selectedBatch && (
+        <CertificatesPanel batch={selectedBatch} onBack={() => setView('results')} />
+      )}
+
+      {view === 'question-bank' && (
+        <QuestionBank userEmail={user.email} />
+      )}
+
+      {view === 'students' && (
+        <StudentsView />
       )}
 
       {view === 'activity-log' && (

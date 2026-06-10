@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { prefetchPaper } from '../../lib/paper'
 import { formatInTimeZone } from 'date-fns-tz'
 
 export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
@@ -7,6 +8,7 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
   const [mm, setMm] = useState('--')
   const [ss, setSs] = useState('--')
   const checkingRef = useRef(false)
+  const zeroCheckRef = useRef(false)
 
   // Server time sync — same monotonic pattern as useTimer
   const baselinePerfRef = useRef(null)
@@ -48,6 +50,25 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
     return () => { cancelled = true }
   }, [])
 
+  // Scale: pre-fetch the encrypted question paper during the wait,
+  // with random jitter (0–45s) so 2000 clients don't fetch at once.
+  // At exam start, only a tiny key fetch remains.
+  useEffect(() => {
+    let cancelled = false
+    let retryId = null
+    const jitter = Math.random() * 45_000
+    const timerId = setTimeout(async () => {
+      if (cancelled) return
+      const ok = await prefetchPaper(batch.id)
+      if (!ok && !cancelled) {
+        // One retry after 30s; if it still fails, ExamScreen falls back
+        // to the direct get_exam_questions path.
+        retryId = setTimeout(() => { if (!cancelled) prefetchPaper(batch.id) }, 30_000)
+      }
+    }, jitter)
+    return () => { cancelled = true; clearTimeout(timerId); clearTimeout(retryId) }
+  }, [batch.id])
+
   useEffect(() => {
     const startTime = new Date(batch.scheduled_start).getTime()
 
@@ -59,7 +80,13 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
       const diff = startTime - now
       if (diff <= 0) {
         setHh('00'); setMm('00'); setSs('00')
-        checkAndTransition()
+        // Scale: jitter the at-zero status check (0–4s, fixed per client)
+        // so 2000 clients don't query simultaneously. The 1s tick re-enters
+        // here, so we gate on a one-time scheduled check.
+        if (!zeroCheckRef.current) {
+          zeroCheckRef.current = true
+          setTimeout(checkAndTransition, Math.random() * 4000)
+        }
         return
       }
       setHh(String(Math.floor(diff / 3600000)).padStart(2, '0'))
@@ -69,7 +96,8 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
 
     tick()
     const timer = setInterval(tick, 1000)
-    const poll  = setInterval(checkAndTransition, 10_000)
+    // Scale: jittered poll cadence (10–16s per client) to spread load
+    const poll  = setInterval(checkAndTransition, 10_000 + Math.random() * 6000)
     return () => { clearInterval(timer); clearInterval(poll) }
   }, [batch.id, batch.scheduled_start, checkAndTransition])
 

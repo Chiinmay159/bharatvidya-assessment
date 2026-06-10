@@ -1,24 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
-import { formatInTimeZone } from 'date-fns-tz'
+import { BatchListRow } from './BatchListRow'
+import { Spinner, InboxIcon } from './batchIcons'
 
-const STATUS_STYLE = {
-  draft:     { bg: 'var(--surface-2)',  color: 'var(--text-3)',  border: 'var(--border)' },
-  scheduled: { bg: '#EFF6FF',           color: '#2563EB',        border: '#BFDBFE' },
-  active:    { bg: 'var(--success-lt)', color: 'var(--success)', border: '#A7F3D0' },
-  completed: { bg: '#F5F3FF',           color: '#7C3AED',        border: '#DDD6FE' },
-}
-
-const TRANSITIONS = {
-  draft:     [{ label: 'Mark Scheduled', next: 'scheduled', variant: 'default' }],
-  scheduled: [{ label: 'Start Now',      next: 'active',    variant: 'success' },
-              { label: 'Revert Draft',   next: 'draft',     variant: 'danger'  }],
-  active:    [{ label: 'End Exam',       next: 'completed', variant: 'danger'  }],
-  completed: [],
-}
-
-export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManageQuestions, onManageRoster }) {
+export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManageQuestions, onManageRoster, onMissionControl }) {
   const [batches,          setBatches]       = useState([])
   const [loading,          setLoading]       = useState(true)
   const [questionCounts,   setQCounts]       = useState({})
@@ -204,145 +190,27 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
                 </tr>
               </thead>
               <tbody>
-                {batches.map((batch, i) => {
-                  const ss          = STATUS_STYLE[batch.status] || STATUS_STYLE.draft
-                  const transitions = TRANSITIONS[batch.status] || []
-                  const isActive    = batch.status === 'active'
-                  const started     = startedCounts[batch.id]    ?? 0
-                  const submitted   = submissionCounts[batch.id] ?? 0
-                  const rostered    = rosterCounts[batch.id]     ?? 0
-
-                  return (
-                    <tr
-                      key={batch.id}
-                      className="table-row"
-                      style={{ borderBottom: i < batches.length - 1 ? '1px solid var(--border)' : 'none' }}
-                    >
-                      {/* Name */}
-                      <td style={{ padding: '13px 14px', fontWeight: 600, color: 'var(--text-1)', minWidth: 140 }}>
-                        {batch.name}
-                        {batch.access_code && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--warn)', background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 6, verticalAlign: 'middle' }}>
-                            <LockIcon /> Code
-                          </span>
-                        )}
-                        {batch.max_attempts > 1 && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 4, verticalAlign: 'middle' }}>
-                            {batch.max_attempts} attempts
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Date */}
-                      <td style={{ padding: '13px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap', fontSize: 12 }}>
-                        {formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'dd MMM yy, hh:mm a')}
-                      </td>
-
-                      {/* Duration */}
-                      <td style={{ padding: '13px 14px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
-                        {batch.duration_minutes} min
-                      </td>
-
-                      {/* Status badge */}
-                      <td style={{ padding: '13px 14px' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          padding: '3px 10px', borderRadius: 'var(--radius-pill)',
-                          fontSize: 11, fontWeight: 600,
-                          background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`,
-                          textTransform: 'capitalize', whiteSpace: 'nowrap',
-                        }}>
-                          {isActive && <span className="u-pulse-dot" style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />}
-                          {batch.status}
-                        </span>
-                      </td>
-
-                      {/* Questions */}
-                      <td style={{ padding: '13px 14px', color: 'var(--text-2)' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{questionCounts[batch.id] ?? 0}</span>
-                        {batch.questions_per_student && (
-                          <span style={{ color: 'var(--text-3)', marginLeft: 3, fontSize: 11 }}>/ {batch.questions_per_student} ea</span>
-                        )}
-                      </td>
-
-                      {/* Roster */}
-                      <td style={{ padding: '13px 14px' }}>
-                        {rostered > 0
-                          ? <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{rostered}</span>
-                          : <span style={{ color: 'var(--text-3)', fontSize: 11 }}>—</span>
-                        }
-                      </td>
-
-                      {/* Submissions / live progress */}
-                      <td style={{ padding: '13px 14px', minWidth: 110 }}>
-                        {isActive && rostered > 0 ? (
-                          <div>
-                            <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 5 }}>
-                              {started} started · <strong style={{ color: 'var(--success)' }}>{submitted}</strong> done
-                            </div>
-                            <div style={{ height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                              <div style={{
-                                height: '100%',
-                                width: `${rostered > 0 ? Math.round((submitted / rostered) * 100) : 0}%`,
-                                background: 'var(--success)', borderRadius: 3,
-                                transition: 'width .5s ease',
-                              }} />
-                            </div>
-                            <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 3 }}>
-                              {rostered > 0 ? Math.round((submitted / rostered) * 100) : 0}% of {rostered}
-                            </div>
-                          </div>
-                        ) : (
-                          <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{submitted}</span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td style={{ padding: '13px 14px' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                          <button onClick={() => onSelectBatch(batch)} className="action-link">Edit</button>
-                          <button onClick={() => onManageQuestions(batch)} className="action-link">Questions</button>
-                          <button onClick={() => onManageRoster(batch)} className="action-link">Roster</button>
-                          {(batch.status === 'active' || batch.status === 'completed') && (
-                            <button onClick={() => onViewResults(batch)} className="action-link">Results</button>
-                          )}
-                          <button onClick={() => setCloneTarget(batch)} className="action-link">Clone</button>
-                          <button
-                            onClick={() => { setDeleteTarget(batch); setDeleteConfirmName('') }}
-                            className="action-link"
-                            style={{ color: 'var(--error)' }}
-                          >
-                            Delete
-                          </button>
-
-                          {transitions.map(t => (
-                            <button
-                              key={t.next}
-                              onClick={() => setConfirmAction({ batchId: batch.id, ...t })}
-                              disabled={transitioning === batch.id}
-                              style={{
-                                all: 'unset', cursor: 'pointer',
-                                fontSize: 11, fontWeight: 600,
-                                padding: '3px 9px', borderRadius: 'var(--radius-sm)',
-                                border: '1px solid',
-                                whiteSpace: 'nowrap',
-                                ...(t.variant === 'success'
-                                  ? { background: 'var(--success-lt)', color: 'var(--success)', borderColor: '#A7F3D0' }
-                                  : t.variant === 'danger'
-                                    ? { background: 'var(--error-lt)', color: 'var(--error)', borderColor: '#FECACA' }
-                                    : { background: 'var(--surface)', color: 'var(--text-2)', borderColor: 'var(--border-md)' }
-                                ),
-                                opacity: transitioning === batch.id ? .5 : 1,
-                              }}
-                            >
-                              {t.label}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {batches.map((batch, i) => (
+                  <BatchListRow
+                    key={batch.id}
+                    batch={batch}
+                    isLast={i === batches.length - 1}
+                    questionCounts={questionCounts}
+                    startedCounts={startedCounts}
+                    submissionCounts={submissionCounts}
+                    rosterCounts={rosterCounts}
+                    transitioning={transitioning}
+                    onSelectBatch={onSelectBatch}
+                    onManageQuestions={onManageQuestions}
+                    onManageRoster={onManageRoster}
+                    onViewResults={onViewResults}
+                    onMissionControl={onMissionControl}
+                    setCloneTarget={setCloneTarget}
+                    setDeleteTarget={setDeleteTarget}
+                    setDeleteConfirmName={setDeleteConfirmName}
+                    setConfirmAction={setConfirmAction}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -450,33 +318,5 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
         </div>
       )}
     </div>
-  )
-}
-
-/* ── Sub-components ─────────────────────────────────────────── */
-
-function Spinner({ size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="u-spin" style={{ display: 'block', margin: '0 auto' }}>
-      <circle cx="12" cy="12" r="10" fill="none" stroke="var(--accent)" strokeWidth="3" strokeDasharray="31" strokeDashoffset="10" />
-    </svg>
-  )
-}
-
-function InboxIcon() {
-  return (
-    <svg width="24" height="24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" viewBox="0 0 24 24">
-      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
-      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function LockIcon() {
-  return (
-    <svg aria-hidden="true" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" />
-    </svg>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDbError } from '../errors.js'
+import { formatDbError } from '../errors'
 
 describe('formatDbError', () => {
   it('returns mapped message for known Postgres code 23505 (unique violation)', () => {

@@ -1,21 +1,45 @@
 import Papa from 'papaparse'
 
-const REQUIRED_HEADERS = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct']
-const VALID_ANSWERS = ['A', 'B', 'C', 'D']
+const REQUIRED_HEADERS = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct'] as const
+const VALID_ANSWERS = ['A', 'B', 'C', 'D'] as const
+
+/** Shape of a raw CSV row as parsed by PapaParse with header: true. */
+interface CsvRow {
+  question?: string
+  option_a?: string
+  option_b?: string
+  option_c?: string
+  option_d?: string
+  correct?: string
+}
+
+/** A validated question ready for insertion into the questions table. */
+export interface ParsedQuestion {
+  question_text: string
+  option_a: string
+  option_b: string
+  option_c: string
+  option_d: string
+  correct_answer: string
+  sort_order: number
+}
+
+export interface ParseQuestionsResult {
+  questions: ParsedQuestion[]
+  errors: string[]
+}
 
 /**
  * Parse and validate a CSV file of questions.
- * @param {File} file
- * @returns {Promise<{ questions: Array, errors: string[] }>}
  */
-export function parseQuestionsCsv(file) {
+export function parseQuestionsCsv(file: File): Promise<ParseQuestionsResult> {
   return new Promise((resolve) => {
-    Papa.parse(file, {
+    Papa.parse<CsvRow>(file, {
       header: true,
       skipEmptyLines: true,
       encoding: 'UTF-8',
       complete(results) {
-        const errors = []
+        const errors: string[] = []
         const rawHeaders = results.meta.fields || []
 
         // Validate required headers
@@ -26,7 +50,7 @@ export function parseQuestionsCsv(file) {
           return
         }
 
-        const questions = []
+        const questions: ParsedQuestion[] = []
         results.data.forEach((row, idx) => {
           const rowNum = idx + 2 // account for header row
           const q = row.question?.trim()
@@ -41,7 +65,7 @@ export function parseQuestionsCsv(file) {
           if (!b) { errors.push(`Row ${rowNum}: option_b is empty`); return }
           if (!c) { errors.push(`Row ${rowNum}: option_c is empty`); return }
           if (!d) { errors.push(`Row ${rowNum}: option_d is empty`); return }
-          if (!VALID_ANSWERS.includes(correct)) {
+          if (!correct || !(VALID_ANSWERS as readonly string[]).includes(correct)) {
             errors.push(`Row ${rowNum}: correct answer "${row.correct}" is invalid — must be A, B, C, or D`)
             return
           }
@@ -59,7 +83,7 @@ export function parseQuestionsCsv(file) {
 
         resolve({ questions, errors })
       },
-      error(err) {
+      error(err: Error) {
         resolve({ questions: [], errors: [err.message] })
       },
     })
@@ -73,7 +97,7 @@ export function parseQuestionsCsv(file) {
  */
 const FORMULA_RE = /^[=+\-@\t\r]/
 
-function sanitizeCell(value) {
+function sanitizeCell(value: unknown): unknown {
   if (typeof value === 'string' && FORMULA_RE.test(value)) {
     return "'" + value
   }
@@ -83,13 +107,12 @@ function sanitizeCell(value) {
 /**
  * Generate a CSV string for download.
  * All cell values are sanitized against formula injection.
- * @param {Array<Object>} rows
- * @param {string[]} fields — ordered column names
- * @returns {string}
+ * @param rows
+ * @param fields — ordered column names
  */
-export function generateCsv(rows, fields) {
+export function generateCsv(rows: Array<Record<string, unknown>>, fields: string[]): string {
   const sanitized = rows.map(row => {
-    const clean = {}
+    const clean: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(row)) {
       clean[k] = sanitizeCell(v)
     }
@@ -100,11 +123,10 @@ export function generateCsv(rows, fields) {
 
 /**
  * Trigger a CSV file download in the browser.
- * @param {string} csvString
- * @param {string} filename
  */
-export function downloadCsv(csvString, filename) {
-  const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' })
+export function downloadCsv(csvString: string, filename: string): void {
+  const bom = String.fromCharCode(0xfeff) // UTF-8 BOM so Excel opens the CSV correctly
+  const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

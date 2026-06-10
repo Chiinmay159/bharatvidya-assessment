@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { StudentPage } from './pages/StudentPage'
+import { SystemCheckPage } from './pages/SystemCheckPage'
+import { VerifyPage } from './pages/VerifyPage'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
 
 // Lazy-load admin (includes recharts ~400KB) — not needed for student path
@@ -25,6 +27,8 @@ export default function App() {
         </a>
         <Routes>
           <Route path="/" element={<StudentPage />} />
+          <Route path="/check" element={<SystemCheckPage />} />
+          <Route path="/verify" element={<VerifyPage />} />
           <Route
             path="/admin"
             element={

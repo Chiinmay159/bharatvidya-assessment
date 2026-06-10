@@ -6,12 +6,38 @@
  * the same output. This survives page refresh.
  */
 
+/** Raw question row from the get_exam_questions RPC (correct_answer stripped server-side). */
+export interface BankQuestion {
+  id: string
+  question_text: string
+  option_a: string
+  option_b: string
+  option_c: string
+  option_d: string
+}
+
+export type OptionLabel = 'A' | 'B' | 'C' | 'D'
+
+export interface ShuffledOption {
+  /** Display label after shuffling (A/B/C/D as shown to the student). */
+  label: OptionLabel
+  text: string
+  /** Pre-shuffle label — what gets stored in the responses table. */
+  originalLabel: OptionLabel
+}
+
+export interface ShuffledQuestion {
+  questionId: string
+  questionText: string
+  options: ShuffledOption[]
+}
+
 /**
  * cyrb53 — fast, well-distributed 32-bit hash.
  * Uses Math.imul for 32-bit integer multiplication.
  * Returns a 32-bit unsigned integer suitable as a mulberry32 seed.
  */
-function cyrb53(str) {
+function cyrb53(str: string): number {
   let h1 = 0xdeadbeef
   let h2 = 0x41c6ce57
   for (let i = 0; i < str.length; i++) {
@@ -28,10 +54,10 @@ function cyrb53(str) {
 
 /**
  * mulberry32 PRNG.
- * @param {number} seed — 32-bit unsigned integer
- * @returns {() => number} — closure returning floats in [0, 1)
+ * @param seed — 32-bit unsigned integer
+ * @returns closure returning floats in [0, 1)
  */
-function mulberry32(seed) {
+function mulberry32(seed: number): () => number {
   return function () {
     seed = (seed + 0x6d2b79f5) | 0
     let t = Math.imul(seed ^ (seed >>> 15), seed | 1)
@@ -43,10 +69,10 @@ function mulberry32(seed) {
 /**
  * Fisher-Yates shuffle using a seeded RNG.
  * Returns a new array; original is not mutated.
- * @param {Array} array
- * @param {() => number} rng — seeded PRNG returning [0, 1)
+ * @param array
+ * @param rng — seeded PRNG returning [0, 1)
  */
-function seededShuffle(array, rng) {
+function seededShuffle<T>(array: readonly T[], rng: () => number): T[] {
   const result = [...array]
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1))
@@ -69,21 +95,19 @@ function seededShuffle(array, rng) {
  * evaluation happens server-side via the set_is_correct trigger
  * and the submit_exam RPC. The client never learns the correct answer.
  *
- * @param {Object} question — raw question from get_exam_questions RPC
- * @param {() => number} rng — seeded PRNG (state advances)
- * @returns {{ questionId, questionText, options }}
- *   options: [{ label, text, originalLabel }]  (label = display A/B/C/D)
+ * @param question — raw question from get_exam_questions RPC
+ * @param rng — seeded PRNG (state advances)
  */
-function shuffleOptions(question, rng) {
-  const originalOptions = [
+function shuffleOptions(question: BankQuestion, rng: () => number): ShuffledQuestion {
+  const originalOptions: Array<{ originalLabel: OptionLabel; text: string }> = [
     { originalLabel: 'A', text: question.option_a },
     { originalLabel: 'B', text: question.option_b },
     { originalLabel: 'C', text: question.option_c },
     { originalLabel: 'D', text: question.option_d },
   ]
   const shuffled = seededShuffle(originalOptions, rng)
-  const labels = ['A', 'B', 'C', 'D']
-  const options = shuffled.map((opt, i) => ({
+  const labels: OptionLabel[] = ['A', 'B', 'C', 'D']
+  const options: ShuffledOption[] = shuffled.map((opt, i) => ({
     label: labels[i],
     text: opt.text,
     originalLabel: opt.originalLabel,
@@ -98,14 +122,19 @@ function shuffleOptions(question, rng) {
 /**
  * Full pipeline: select and shuffle questions for a student.
  *
- * @param {Array} questions — all questions for the batch, MUST be sorted by sort_order ASC
- * @param {string} rollNumber
- * @param {string} batchId
- * @param {number|null} questionsPerStudent — null = use all
- * @param {number} [attemptNumber=1] — attempt number (changes seed for retries)
- * @returns {Array<ShuffledQuestion>}
+ * @param questions — all questions for the batch, MUST be sorted by sort_order ASC
+ * @param rollNumber
+ * @param batchId
+ * @param questionsPerStudent — null = use all
+ * @param attemptNumber — attempt number (changes seed for retries)
  */
-export function selectAndShuffleQuestions(questions, rollNumber, batchId, questionsPerStudent, attemptNumber = 1) {
+export function selectAndShuffleQuestions(
+  questions: readonly BankQuestion[],
+  rollNumber: string,
+  batchId: string,
+  questionsPerStudent?: number | null,
+  attemptNumber = 1
+): ShuffledQuestion[] {
   const seed = cyrb53(rollNumber + '|' + batchId + '|' + attemptNumber)
   const rng = mulberry32(seed)
 

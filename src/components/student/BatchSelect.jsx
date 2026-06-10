@@ -212,7 +212,7 @@ function LiveBadge({ live }) {
       padding: '4px 10px', borderRadius: 'var(--radius-md)',
       fontSize: 12, fontWeight: 600,
       background: live ? 'var(--success-lt)' : 'var(--accent-lt)',
-      color: live ? 'var(--success)' : 'var(--accent)',
+      color: live ? 'var(--success)' : 'var(--accent-deep)',
       border: `1px solid ${live ? 'var(--success)' : 'var(--accent-md)'}`,
     }}>
       {live && (

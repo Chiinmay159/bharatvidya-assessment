@@ -3,7 +3,12 @@
  * Students should never see technical error text.
  */
 
-const PG_CODE_MAP = {
+export interface DbErrorLike {
+  message?: string
+  code?: string
+}
+
+const PG_CODE_MAP: Record<string, string> = {
   '23505': 'This record already exists. Please check your details and try again.',
   '23503': 'A required reference was not found. Please go back and try again.',
   '42501': 'Access denied. Please contact your invigilator.',
@@ -11,7 +16,7 @@ const PG_CODE_MAP = {
   'PGRST301': 'Your session has expired. Please refresh the page.',
 }
 
-const PATTERN_MAP = [
+const PATTERN_MAP: Array<{ re: RegExp; msg: string }> = [
   { re: /row.level security/i,  msg: 'Access denied. Please contact your invigilator.' },
   { re: /duplicate key/i,       msg: 'This record already exists. Please check your details.' },
   { re: /foreign key/i,         msg: 'A required record was not found. Please go back and try again.' },
@@ -22,15 +27,13 @@ const PATTERN_MAP = [
   { re: /failed to fetch/i,     msg: 'Could not reach the server. Please check your connection.' },
 ]
 
-/**
- * @param {Error | { message?: string; code?: string } | string | null} err
- * @param {string} [fallback]
- * @returns {string}
- */
-export function formatDbError(err, fallback = 'Something went wrong. Please try again.') {
+export function formatDbError(
+  err: Error | DbErrorLike | string | null | undefined,
+  fallback = 'Something went wrong. Please try again.'
+): string {
   if (!err) return fallback
   const msg  = typeof err === 'string' ? err : (err.message || '')
-  const code = typeof err === 'object' ? (err.code || '') : ''
+  const code = typeof err === 'object' ? ((err as DbErrorLike).code || '') : ''
 
   if (PG_CODE_MAP[code]) return PG_CODE_MAP[code]
   for (const { re, msg: friendly } of PATTERN_MAP) {

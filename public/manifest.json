@@ -1,0 +1,14 @@
+{
+  "name": "BharatVidya Exams",
+  "short_name": "BV Exams",
+  "description": "Online examination platform for Indian Knowledge Systems by BharatVidya",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#C9A227",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+  ]
+}

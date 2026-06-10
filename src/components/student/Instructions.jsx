@@ -3,7 +3,7 @@ import { useState } from 'react'
 const RULES = [
   { icon: <OneWayIcon />,    text: 'Questions appear one at a time. You cannot go back to a previous question.' },
   { icon: <TimerIcon />,     text: 'The exam auto-submits when the timer expires.' },
-  { icon: <EyeIcon />,       text: 'Do not switch tabs or windows — tab switches are logged and visible to the invigilator.' },
+  { icon: <EyeIcon />,       text: 'The exam runs in fullscreen. Do not exit fullscreen or switch tabs — both are logged and visible to the invigilator.' },
   { icon: <WifiIcon />,      text: 'Ensure a stable internet connection before you begin.' },
   { icon: <RefreshOffIcon />, text: 'Do not refresh or close this tab once the exam has started.' },
 ]
@@ -103,7 +103,14 @@ export function Instructions({ batch, rollNumber, onBegin }) {
             </label>
 
             <button
-              onClick={() => agreed && onBegin()}
+              onClick={async () => {
+                if (!agreed) return
+                // Best-effort fullscreen (user gesture required). Denial is
+                // logged later via integrity events; never blocks the exam —
+                // iOS Safari and some mobile browsers don't support it.
+                try { await document.documentElement.requestFullscreen?.() } catch { /* unsupported/denied — proceed */ }
+                onBegin()
+              }}
               disabled={!agreed}
               className={`btn btn-block ${agreed ? 'btn-primary' : ''}`}
               style={{

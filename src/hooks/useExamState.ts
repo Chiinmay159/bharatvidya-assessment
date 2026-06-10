@@ -1,7 +1,75 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { selectAndShuffleQuestions } from '../lib/seed'
+import { selectAndShuffleQuestions, type BankQuestion, type ShuffledQuestion } from '../lib/seed'
 import { formatDbError } from '../lib/errors'
+import { hasCachedPaper, getDecryptedPaper } from '../lib/paper'
+
+export type ExamStatus = 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
+
+/** Batch row fields used by the exam session. */
+export interface ExamBatch {
+  id: string
+  scheduled_start: string
+  duration_minutes: number
+  questions_per_student?: number | null
+  show_results?: boolean | null
+  pass_percentage?: number | null
+  max_attempts?: number | null
+  status?: string | null
+}
+
+export interface ExamResult {
+  alreadySubmitted?: boolean
+  score: number | null
+  total: number
+  percentage: number | null
+  showResults: boolean
+  passPercentage: number | null
+  canRetry: boolean
+  attemptNumber: number
+  maxAttempts: number
+}
+
+interface QueuedResponse {
+  questionId: string
+  originalLabel: string
+  attemptId: string
+  timeSpent?: number | null
+}
+
+export interface UseExamStateOptions {
+  batch: ExamBatch | null | undefined
+  rollNumber: string
+  studentName: string
+  email?: string | null
+  accessCode?: string | null
+  forceNewAttempt?: boolean
+}
+
+export interface UseExamStateResult {
+  status: ExamStatus
+  attemptId: string | null
+  currentQuestion: ShuffledQuestion | null
+  currentIndex: number
+  totalQuestions: number
+  answeredMap: Record<string, string>
+  result: ExamResult | null
+  error: string | null
+  pendingCount: number
+  unsavedCount: number
+  /** Admin-granted time extension in minutes (0 if none), via exam_heartbeat */
+  extraTimeMinutes: number
+  submitAnswer: (selectedLabel: string, isFinal?: boolean, timeSpentMs?: number | null) => Promise<void>
+  autoSubmit: () => Promise<void>
+  retrySubmit: () => Promise<void>
+  forceSubmit: () => Promise<void>
+}
+
+/** Minimal error shape narrowed from unknown caught values / Supabase errors. */
+interface ErrorLike {
+  message?: string
+  code?: string
+}
 
 /**
  * useExamState — manages the full student exam session lifecycle.
@@ -23,28 +91,31 @@ import { formatDbError } from '../lib/errors'
  * - Seed includes attemptNumber for different questions per retry
  * - submit_exam returns can_retry, show_results, pass_percentage for result UI
  */
-export function useExamState({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt = false }) {
-  const [status,       setStatus]       = useState('loading') // 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
-  const [attemptId,    setAttemptId]    = useState(null)
-  const [questions,    setQuestions]    = useState([])
+export function useExamState({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt = false }: UseExamStateOptions): UseExamStateResult {
+  const [status,       setStatus]       = useState<ExamStatus>('loading') // 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
+  const [attemptId,    setAttemptId]    = useState<string | null>(null)
+  const [questions,    setQuestions]    = useState<ShuffledQuestion[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [answeredMap,  setAnsweredMap]  = useState({})
-  const [result,       setResult]       = useState(null)
-  const [error,        setError]        = useState(null)
+  const [answeredMap,  setAnsweredMap]  = useState<Record<string, string>>({})
+  const [result,       setResult]       = useState<ExamResult | null>(null)
+  const [error,        setError]        = useState<string | null>(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [unsavedCount, setUnsavedCount] = useState(0)
-  const failedQueueRef = useRef([]) // { questionId, originalLabel, attemptId }
-  const sessionTokenRef = useRef(null)
+  // Admin-granted extension (minutes), delivered via exam_heartbeat
+  const [extraTimeMinutes, setExtraTimeMinutes] = useState(0)
+  const failedQueueRef = useRef<QueuedResponse[]>([]) // { questionId, originalLabel, attemptId }
+  const sessionTokenRef = useRef<string | null>(null)
 
   const batchId = batch?.id
 
   const initExam = useCallback(async () => {
     try {
       setStatus('loading')
+      if (!batch || !batchId) return
 
       // Guard: block entry if exam window has already closed (using server time)
       const { data: serverTimeData } = await supabase.rpc('get_server_time')
-      const serverNow = serverTimeData ? new Date(serverTimeData).getTime() : Date.now()
+      const serverNow = serverTimeData ? new Date(serverTimeData as string).getTime() : Date.now()
       const examEndMs = new Date(batch.scheduled_start).getTime() + batch.duration_minutes * 60 * 1000
       if (serverNow > examEndMs) {
         throw new Error('The exam time window has already closed. Please contact your invigilator.')
@@ -57,7 +128,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         p_student_name: studentName,
       })
 
-      let currentAttemptId
+      let currentAttemptId: string
       let currentAttemptNumber = 1
 
       if (existing && existing.length > 0) {
@@ -87,7 +158,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
               }
               throw insertError
             }
-            currentAttemptId = newAttemptId
+            currentAttemptId = newAttemptId as string
           } else {
             // Not a retry — show the latest submitted result
             const showResults = batch.show_results !== false
@@ -146,7 +217,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
           }
           throw insertError
         }
-        currentAttemptId = newAttemptId
+        currentAttemptId = newAttemptId as string
       }
 
       setAttemptId(currentAttemptId)
@@ -158,12 +229,22 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         p_student_name: studentName,
       })
       if (sessionErr) throw sessionErr
-      sessionTokenRef.current = token
+      sessionTokenRef.current = token as string
 
-      // 3. Fetch questions via RPC — correct_answer stripped server-side
-      const { data: rawQuestions, error: qError } = await supabase
-        .rpc('get_exam_questions', { p_batch_id: batchId })
-      if (qError) throw qError
+      // 3. Get questions. Fast path (scale): decrypt the paper pre-fetched
+      //    in the waiting room — only a tiny key RPC at start time.
+      //    Fallback: direct get_exam_questions RPC (same server-side
+      //    correct_answer stripping in both paths).
+      let rawQuestions: BankQuestion[] | null = null
+      if (hasCachedPaper(batchId)) {
+        rawQuestions = await getDecryptedPaper(batchId)
+      }
+      if (!rawQuestions) {
+        const { data, error: qError } = await supabase
+          .rpc('get_exam_questions', { p_batch_id: batchId })
+        if (qError) throw qError
+        rawQuestions = data as BankQuestion[]
+      }
 
       if (!rawQuestions || rawQuestions.length === 0) {
         throw new Error('No questions found for this exam. Please contact your invigilator.')
@@ -183,10 +264,10 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
           p_student_name: studentName,
         })
         if (prevResponses?.length > 0) {
-          const map = {}
-          prevResponses.forEach(r => { map[r.question_id] = r.selected_answer })
+          const map: Record<string, string> = {}
+          prevResponses.forEach((r: { question_id: string; selected_answer: string }) => { map[r.question_id] = r.selected_answer })
           setAnsweredMap(map)
-          const answeredIds = new Set(prevResponses.map(r => r.question_id))
+          const answeredIds = new Set(prevResponses.map((r: { question_id: string }) => r.question_id))
           const firstUnanswered = shuffled.findIndex(q => !answeredIds.has(q.questionId))
           setCurrentIndex(firstUnanswered === -1 ? shuffled.length - 1 : firstUnanswered)
         }
@@ -194,7 +275,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
 
       setStatus('ready')
     } catch (err) {
-      setError(formatDbError(err, 'Failed to start exam. Please try again.'))
+      setError(formatDbError(err as ErrorLike, 'Failed to start exam. Please try again.'))
       setStatus('error')
     }
   }, [batch, batchId, rollNumber, studentName, email, accessCode, forceNewAttempt])
@@ -206,11 +287,39 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
 
   // Session heartbeat — detect when another window claims the session.
   // Runs during 'ready' and 'unsaved_warning' to prevent pausing detection.
+  // Scale: 30s cadence + per-client jitter (±5s) — halves sustained RPC
+  // load at 2000 students and desynchronizes the herd. Session conflicts
+  // are still caught instantly by save_response on the next answer.
   useEffect(() => {
     if (!attemptId || !sessionTokenRef.current) return
     if (status !== 'ready' && status !== 'unsaved_warning') return
+    const intervalMs = 30_000 + (Math.random() - 0.5) * 10_000
+    let useLegacy = false
     const interval = setInterval(async () => {
       try {
+        if (!useLegacy) {
+          // exam_heartbeat: validates session, stamps presence for mission
+          // control, and returns any admin-granted time extension.
+          const { data, error } = await supabase.rpc('exam_heartbeat', {
+            p_attempt_id:    attemptId,
+            p_session_token: sessionTokenRef.current,
+          })
+          if (error) {
+            // Pre-migration DB — fall back to plain session check
+            useLegacy = true
+            return
+          }
+          const row = Array.isArray(data) ? data[0] : data
+          if (row?.valid === false) {
+            setError('This exam is already open in another window. Close that tab and refresh to continue.')
+            setStatus('error')
+            return
+          }
+          if (typeof row?.extra_time_minutes === 'number') {
+            setExtraTimeMinutes(prev => row.extra_time_minutes !== prev ? row.extra_time_minutes : prev)
+          }
+          return
+        }
         const { data: valid } = await supabase.rpc('check_session', {
           p_attempt_id:    attemptId,
           p_session_token: sessionTokenRef.current,
@@ -222,15 +331,36 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       } catch {
         // Network error — don't kick the student out
       }
-    }, 15_000)
+    }, intervalMs)
     return () => clearInterval(interval)
   }, [attemptId, status])
 
-  /** Drain the failed queue before final submission (uses save_response RPC). */
+  /**
+   * Drain the failed queue before final submission.
+   * Scale: one save_responses_batch RPC (single session check, bulk upsert)
+   * instead of N sequential save_response calls. Falls back to per-item
+   * saves if the batch RPC is unavailable (older DB).
+   */
   const drainFailedQueue = useCallback(async () => {
     const queue = [...failedQueueRef.current]
     if (queue.length === 0) return
-    const remaining = []
+
+    try {
+      const { error } = await supabase.rpc('save_responses_batch', {
+        p_attempt_id:    queue[0].attemptId,
+        p_session_token: sessionTokenRef.current,
+        p_responses:     queue.map(q => ({ question_id: q.questionId, selected_answer: q.originalLabel, time_spent_ms: q.timeSpent ?? null })),
+      })
+      if (!error) {
+        failedQueueRef.current = []
+        setPendingCount(0)
+        return
+      }
+      if (error.message?.includes('Invalid session')) return // keep queue; submit flow handles it
+      // Other errors (e.g. RPC missing) → fall through to per-item path
+    } catch { /* fall through to per-item path */ }
+
+    const remaining: QueuedResponse[] = []
     for (let i = 0; i < queue.length; i++) {
       const item = queue[i]
       try {
@@ -256,7 +386,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     setPendingCount(remaining.length)
   }, [])
 
-  const finalizeSubmission = useCallback(async ({ force = false } = {}) => {
+  const finalizeSubmission = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
     if (!attemptId) return
     setStatus('submitting')
     try {
@@ -302,32 +432,42 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     } catch (err) {
       console.error('Submission error:', err)
       setStatus('error')
-      setError(formatDbError(err, 'Submission failed. Please contact the invigilator.'))
+      setError(formatDbError(err as ErrorLike, 'Submission failed. Please contact the invigilator.'))
     }
   }, [attemptId, drainFailedQueue])
 
   /**
    * Submit a single response and advance.
    */
-  const submitAnswer = useCallback(async (selectedLabel, isFinal = false) => {
+  const submitAnswer = useCallback(async (selectedLabel: string, isFinal = false, timeSpentMs: number | null = null) => {
     const question = questions[currentIndex]
     if (!question || !attemptId) return
 
     const selectedOption = question.options.find(o => o.label === selectedLabel)
+    if (!selectedOption) return // stale/invalid label — never throw mid-exam
     const originalLabel = selectedOption.originalLabel
+    const timeSpent = Number.isFinite(timeSpentMs) ? Math.round(timeSpentMs as number) : null
 
     setAnsweredMap(prev => ({ ...prev, [question.questionId]: originalLabel }))
 
     /** Save via RPC with session-token validation. Retries on transient errors. */
-    async function saveWithRetry(questionId, answer, retries = 3) {
+    async function saveWithRetry(questionId: string, answer: string, retries = 3): Promise<void> {
+      let includeTiming = true
       for (let i = 0; i < retries; i++) {
-        const { error } = await supabase.rpc('save_response', {
+        const params: Record<string, unknown> = {
           p_attempt_id:      attemptId,
           p_question_id:     questionId,
           p_selected_answer: answer,
           p_session_token:   sessionTokenRef.current,
-        })
+        }
+        if (includeTiming) params.p_time_spent_ms = timeSpent
+        const { error } = await supabase.rpc('save_response', params)
         if (!error) return
+        // Pre-migration DB (function signature mismatch) → retry without timing
+        if (includeTiming && (error.code === 'PGRST202' || error.message?.includes('function'))) {
+          includeTiming = false
+          continue
+        }
         // Session conflict — don't retry, escalate immediately
         if (error.message?.includes('Invalid session')) throw error
         if (i < retries - 1) await sleep(500 * Math.pow(2, i))
@@ -339,14 +479,14 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       await saveWithRetry(question.questionId, originalLabel)
     } catch (err) {
       // Session conflict = hard stop — lock the student out immediately
-      if (err?.message?.includes('Invalid session')) {
+      if ((err as ErrorLike)?.message?.includes('Invalid session')) {
         setError('This exam is already open in another window. Close that tab and refresh to continue.')
         setStatus('error')
         return
       }
       // Transient network error — queue for retry before submission
       console.error('Failed to save response after retries, queuing:', err)
-      failedQueueRef.current.push({ questionId: question.questionId, originalLabel, attemptId })
+      failedQueueRef.current.push({ questionId: question.questionId, originalLabel, attemptId, timeSpent })
       setPendingCount(failedQueueRef.current.length)
     }
 
@@ -385,6 +525,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     error,
     pendingCount,
     unsavedCount,
+    extraTimeMinutes,
     submitAnswer,
     autoSubmit,
     retrySubmit,
@@ -392,6 +533,6 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
   }
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }

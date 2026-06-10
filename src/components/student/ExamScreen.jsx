@@ -4,6 +4,12 @@ import { useTimer } from '../../hooks/useTimer'
 import { useExamState } from '../../hooks/useExamState'
 import { FocusTrapModal } from '../shared/FocusTrapModal'
 import { Spinner } from '../shared/Spinner'
+import { IconClipboard, IconClock } from './examIcons'
+import {
+  DuplicateSessionScreen, UnsavedWarningScreen,
+  LoadingScreen, SubmittingScreen, ErrorScreen, NoQuestionsScreen,
+} from './ExamStatusScreens'
+import { iconWrap } from './examStyles'
 
 const DEVANAGARI_RE = /[\u0900-\u097F]/
 
@@ -15,7 +21,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
 
   const {
     status, currentQuestion, currentIndex, totalQuestions,
-    attemptId, result, error, pendingCount, unsavedCount,
+    attemptId, result, error, pendingCount, unsavedCount, extraTimeMinutes,
     submitAnswer, autoSubmit, retrySubmit, forceSubmit,
   } = useExamState({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt })
 
@@ -42,6 +48,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     onBatchEnded: handleBatchEnded,
     batchId: batch.id,
     enabled: timerEnabled,
+    extraMinutes: extraTimeMinutes,
   })
 
   // Fix 6: Accessible timer — announce at 10min, 5min, 1min thresholds only
@@ -64,9 +71,12 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [remainingMs])
 
-  // Reset selection when question index changes
+  // Reset selection when question index changes + restart per-question clock
   const prevIndexRef = useRef(currentIndex)
+  const questionStartRef = useRef(null)
   useEffect(() => {
+    // Start/restart the per-question clock (initial mount + each index change)
+    questionStartRef.current = performance.now()
     if (prevIndexRef.current !== currentIndex) {
       prevIndexRef.current = currentIndex
       /* eslint-disable react-hooks/set-state-in-effect -- reset on index change */
@@ -108,105 +118,67 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
   async function handleNext() {
     if (!selectedLabel || submittingAnswer) return
     setSubmittingAnswer(true)
-    await submitAnswer(selectedLabel, isLastQuestion)
+    await submitAnswer(selectedLabel, isLastQuestion, performance.now() - questionStartRef.current)
     setSubmittingAnswer(false)
+  }
+
+  // Integrity: log fullscreen exits (logged, never auto-ejected)
+  useEffect(() => {
+    if (!attemptId || status !== 'ready') return
+    function handleFsChange() {
+      if (!document.fullscreenElement) {
+        supabase.from('integrity_events')
+          .insert({ attempt_id: attemptId, event_type: 'fullscreen_exit' })
+          .then(() => {}, () => {}) // best-effort; never disrupt the exam
+      }
+    }
+    document.addEventListener('fullscreenchange', handleFsChange)
+    return () => document.removeEventListener('fullscreenchange', handleFsChange)
+  }, [attemptId, status])
+
+  // Integrity: block + log copy attempts on question content
+  const handleCopy = (e) => {
+    e.preventDefault()
+    if (attemptId) {
+      supabase.from('integrity_events')
+        .insert({ attempt_id: attemptId, event_type: 'copy_attempt' })
+        .then(() => {}, () => {})
+    }
   }
 
   /* ── Duplicate session ──────────────────────────────────── */
   if (duplicateSession) {
-    return (
-      <div style={centerFlex}>
-        <div className="card" style={{ maxWidth: 400, padding: '40px 32px', textAlign: 'center' }}>
-          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconLock /></div>
-          <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700 }}>Exam open in another window</h2>
-          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
-            Only one active session is allowed per student. Close all other tabs with this exam, then refresh.
-          </p>
-        </div>
-      </div>
-    )
+    return <DuplicateSessionScreen />
   }
 
   /* ── Unsaved answers warning ──────────────────────────────── */
   if (status === 'unsaved_warning') {
-    const warnTimerColor = isUrgent ? 'var(--error)' : 'var(--text-2)'
     return (
-      <div style={centerFlex}>
-        <div className="card" style={{ maxWidth: 420, padding: '36px 28px', textAlign: 'center' }}>
-          {/* Live timer — countdown never pauses */}
-          <div style={{ marginBottom: 16, fontSize: 20, fontWeight: 700, color: warnTimerColor, fontFamily: 'var(--font-mono)' }}>
-            {remainingFormatted}
-            {isUrgent && <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--error)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Time running low</span>}
-          </div>
-          <div style={{ ...iconWrap, background: 'var(--warn-lt)', border: '1px solid var(--border)', color: 'var(--warn)' }}><IconSignal /></div>
-          <h2 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
-            Some answers couldn't be saved
-          </h2>
-          <p style={{ margin: '0 0 24px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.65 }}>
-            {unsavedCount} answer{unsavedCount !== 1 ? 's' : ''} failed to save due to connectivity issues.
-            Check your connection and retry, or submit without {unsavedCount === 1 ? 'it' : 'them'}.
-          </p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={retrySubmit} className="btn btn-primary" style={{ flex: 1, padding: '12px 16px' }}>
-              Retry
-            </button>
-            <button onClick={forceSubmit} className="btn btn-secondary" style={{ flex: 1, padding: '12px 16px' }}>
-              Submit anyway
-            </button>
-          </div>
-          <p style={{ margin: '14px 0 0', color: 'var(--text-3)', fontSize: 12 }}>
-            Submitting anyway may reduce your score by up to {unsavedCount} point{unsavedCount !== 1 ? 's' : ''}.
-          </p>
-        </div>
-      </div>
+      <UnsavedWarningScreen
+        isUrgent={isUrgent}
+        remainingFormatted={remainingFormatted}
+        unsavedCount={unsavedCount}
+        retrySubmit={retrySubmit}
+        forceSubmit={forceSubmit}
+      />
     )
   }
 
   /* ── Loading ──────────────────────────────────────────────  */
   if (status === 'loading') {
-    return (
-      <div style={centerFlex}>
-        <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="var(--accent)" /></div>
-          <p style={{ marginTop: 14, fontSize: 14 }}>Preparing your exam…</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (status === 'submitting') {
-    return (
-      <div style={centerFlex}>
-        <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="var(--accent)" /></div>
-          <p style={{ marginTop: 14, fontSize: 14 }}>Submitting your answers…</p>
-        </div>
-      </div>
-    )
+    return <SubmittingScreen />
   }
 
   if (status === 'error') {
-    return (
-      <div style={{ ...centerFlex, padding: 20 }}>
-        <div className="card" style={{ maxWidth: 380, padding: '32px 28px', textAlign: 'center' }}>
-          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconAlert /></div>
-          <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 16 }}>Something went wrong</p>
-          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6 }}>{error}</p>
-        </div>
-      </div>
-    )
+    return <ErrorScreen error={error} />
   }
 
   if (!currentQuestion) {
-    return (
-      <div style={centerFlex}>
-        <div className="card" style={{ maxWidth: 380, padding: '32px 28px', textAlign: 'center' }}>
-          <div style={{ ...iconWrap, background: 'var(--error-lt)', border: '1px solid var(--border)', color: 'var(--error)' }}><IconAlert /></div>
-          <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 16 }}>No questions available</p>
-          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>Please contact your invigilator.</p>
-        </div>
-      </div>
-    )
+    return <NoQuestionsScreen />
   }
 
   const progress = totalQuestions > 0 ? (currentIndex / totalQuestions) * 100 : 0
@@ -271,7 +243,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
       </div>
 
       {/* ── Question area ───────────────────────────────────── */}
-      <main id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 20px 48px', outline: 'none' }}>
+      <main id="main-content" tabIndex={-1} onCopy={handleCopy} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 20px 48px', outline: 'none' }}>
         <div style={{ width: '100%', maxWidth: 680 }}>
 
           {/* Question card */}
@@ -387,7 +359,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
               onClick={async () => {
                 setShowConfirm(false)
                 setSubmittingAnswer(true)
-                await submitAnswer(selectedLabel, true)
+                await submitAnswer(selectedLabel, true, performance.now() - questionStartRef.current)
                 setSubmittingAnswer(false)
               }}
               className="btn btn-success"
@@ -417,56 +389,4 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
       )}
     </div>
   )
-}
-
-/* ── SVG icon components ────────────────────────────────── */
-
-function IconLock() {
-  return (
-    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function IconSignal() {
-  return (
-    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M1.42 9a16 16 0 0 1 21.16 0" strokeLinecap="round" /><path d="M5 12.55a11 11 0 0 1 14.08 0" strokeLinecap="round" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" strokeLinecap="round" /><circle cx="12" cy="20" r="1" fill="currentColor" />
-    </svg>
-  )
-}
-
-function IconAlert() {
-  return (
-    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round" /><line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function IconClipboard() {
-  return (
-    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" strokeLinecap="round" strokeLinejoin="round" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-    </svg>
-  )
-}
-
-function IconClock() {
-  return (
-    <svg aria-hidden="true" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-/* ── Sub-components ──────────────────────────────────────── */
-
-const centerFlex = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }
-
-const iconWrap = {
-  width: 56, height: 56, borderRadius: '50%',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  margin: '0 auto 18px',
 }
