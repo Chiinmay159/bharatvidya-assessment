@@ -84,12 +84,9 @@ export function BatchSelect({ onSelectBatch }) {
               Assessment Platform
             </span>
           </div>
-          <h1 className="hero-title" style={{ margin: '0 0 8px', fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#FDFBF5', letterSpacing: '-.6px', lineHeight: 1.15 }}>
+          <h1 className="hero-title" style={{ margin: 0, fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#FDFBF5', letterSpacing: '-.6px', lineHeight: 1.15 }}>
             Find your exam
           </h1>
-          <p style={{ margin: 0, color: 'rgba(253,251,245,.6)', fontSize: 15, lineHeight: 1.55 }}>
-            Enter the exam code shared by your institution.
-          </p>
         </div>
       </div>
 
@@ -119,8 +116,8 @@ export function BatchSelect({ onSelectBatch }) {
           {codeError && (
             <p role="alert" style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--error)', lineHeight: 1.5 }}>{codeError}</p>
           )}
-          <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.55 }}>
-            Your institution shares this code on the notice board, admit card, or with your instructor.
+          <p style={{ margin: '10px 0 0', fontSize: 13, fontWeight: 700, color: 'var(--text-2)', lineHeight: 1.55 }}>
+            Use the 8-character exam code shared by your college/institution.
           </p>
         </form>
 

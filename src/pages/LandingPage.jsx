@@ -101,7 +101,7 @@ export function LandingPage() {
           }}>
             <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 'var(--text-sm)', color: '#FDFBF5', lineHeight: 1.7 }}>
               Built for real conditions —
-              <span style={{ color: 'var(--accent-md)' }}> 2,000 students at once</span>, exams that
+              <span style={{ color: 'var(--accent-md)' }}> 2,000+ students at once</span>, exams that
               survive network drops, and results an institution can stand behind.
             </p>
           </section>
