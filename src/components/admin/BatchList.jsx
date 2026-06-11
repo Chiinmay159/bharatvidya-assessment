@@ -4,7 +4,7 @@ import { logAuditEvent } from '../../lib/auditLog'
 import { BatchListRow } from './BatchListRow'
 import { Spinner, InboxIcon } from './batchIcons'
 
-export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManageQuestions, onManageRoster, onMissionControl }) {
+export function BatchList({ canManage = true, canMonitor = true, onSelectBatch, onCreateBatch, onViewResults, onManageQuestions, onManageRoster, onMissionControl }) {
   const [batches,          setBatches]       = useState([])
   const [loading,          setLoading]       = useState(true)
   const [questionCounts,   setQCounts]       = useState({})
@@ -147,9 +147,11 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
             )}
           </p>
         </div>
-        <button onClick={onCreateBatch} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
-          + New Batch
-        </button>
+        {onCreateBatch && (
+          <button onClick={onCreateBatch} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
+            + New Batch
+          </button>
+        )}
       </div>
 
       {/* Loading */}
@@ -168,9 +170,11 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
           </div>
           <p style={{ margin: '0 0 6px', fontWeight: 700, color: 'var(--text-1)', fontSize: 16 }}>No batches yet</p>
           <p style={{ margin: '0 0 24px', color: 'var(--text-2)', fontSize: 13 }}>Create your first exam batch to get started.</p>
-          <button onClick={onCreateBatch} className="btn btn-primary" style={{ margin: '0 auto', padding: '10px 20px' }}>
-            Create first batch
-          </button>
+          {onCreateBatch && (
+            <button onClick={onCreateBatch} className="btn btn-primary" style={{ margin: '0 auto', padding: '10px 20px' }}>
+              Create first batch
+            </button>
+          )}
         </div>
       )}
 
@@ -195,6 +199,8 @@ export function BatchList({ onSelectBatch, onCreateBatch, onViewResults, onManag
                     key={batch.id}
                     batch={batch}
                     isLast={i === batches.length - 1}
+                    canManage={canManage}
+                    canMonitor={canMonitor}
                     questionCounts={questionCounts}
                     startedCounts={startedCounts}
                     submissionCounts={submissionCounts}

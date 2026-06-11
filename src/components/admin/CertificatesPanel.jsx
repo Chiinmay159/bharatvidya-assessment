@@ -9,7 +9,7 @@ import { Spinner } from '../shared/Spinner'
  * Printing: window.print() with print CSS — each certificate is an
  * A4-landscape page with a QR pointing to /verify?c=CODE.
  */
-export function CertificatesPanel({ batch, onBack }) {
+export function CertificatesPanel({ batch, canManage = true, onBack }) {
   const [certs, setCerts] = useState(null)
   const [qrs, setQrs] = useState({}) // code → dataURL
   const [issuing, setIssuing] = useState(false)
@@ -54,6 +54,22 @@ export function CertificatesPanel({ batch, onBack }) {
     }
   }
 
+  async function handleRevoke(c) {
+    const reason = window.prompt(`Revoke certificate for ${c.student_name} (${c.certificate_code})?\nThis marks it invalid on the public verification page.\n\nReason (optional):`, '')
+    if (reason === null) return // cancelled
+    setError(null); setNotice(null)
+    const { error: err } = await supabase.rpc('revoke_certificate', { p_certificate_id: c.id, p_reason: reason || null })
+    if (err) setError(formatDbError(err, 'Revoke failed.'))
+    else { setNotice(`Revoked ${c.certificate_code}.`); load() }
+  }
+
+  async function handleRestore(c) {
+    setError(null); setNotice(null)
+    const { error: err } = await supabase.rpc('restore_certificate', { p_certificate_id: c.id })
+    if (err) setError(formatDbError(err, 'Restore failed.'))
+    else { setNotice(`Restored ${c.certificate_code}.`); load() }
+  }
+
   if (!certs && !error) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size={26} color="var(--accent)" /></div>
   }
@@ -71,9 +87,11 @@ export function CertificatesPanel({ batch, onBack }) {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={handleIssue} disabled={issuing} className="btn btn-primary" style={{ padding: '10px 18px' }}>
-              {issuing ? <><Spinner size={14} /> Issuing…</> : 'Issue certificates'}
-            </button>
+            {canManage && (
+              <button onClick={handleIssue} disabled={issuing} className="btn btn-primary" style={{ padding: '10px 18px' }}>
+                {issuing ? <><Spinner size={14} /> Issuing…</> : 'Issue certificates'}
+              </button>
+            )}
             {certs?.length > 0 && (
               <button onClick={() => window.print()} className="btn btn-secondary" style={{ padding: '10px 18px' }}>
                 Print all
@@ -94,11 +112,23 @@ export function CertificatesPanel({ batch, onBack }) {
             pageBreakAfter: 'always', position: 'relative',
             opacity: c.revoked ? 0.5 : 1,
           }}>
-            {c.revoked && (
+            {/* Revoke / restore (examiner+; never printed) */}
+            {canManage && (
+              <div className="no-print" style={{ position: 'absolute', top: 10, right: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {c.revoked && <span style={{ color: 'var(--error)', fontWeight: 700, fontSize: 12 }}>REVOKED</span>}
+                <button
+                  onClick={() => c.revoked ? handleRestore(c) : handleRevoke(c)}
+                  className="btn btn-secondary" style={{ padding: '3px 10px', fontSize: 11, color: c.revoked ? 'var(--success)' : 'var(--error)' }}
+                >
+                  {c.revoked ? 'Restore' : 'Revoke'}
+                </button>
+              </div>
+            )}
+            {c.revoked && !canManage && (
               <div className="no-print" style={{ position: 'absolute', top: 10, right: 14, color: 'var(--error)', fontWeight: 700, fontSize: 12 }}>REVOKED</div>
             )}
             <div style={{ textAlign: 'center', marginBottom: 18 }}>
-              <img src="/logo.png" alt="BharatVidya" style={{ width: 54, height: 54, borderRadius: '50%' }} />
+              <img src="/logo.png" alt="" style={{ width: 54, height: 54, borderRadius: '50%' }} />
               <h3 style={{ margin: '10px 0 2px', fontSize: 22, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-.3px' }}>
                 Certificate of {c.passed && batch.pass_percentage != null ? 'Achievement' : 'Participation'}
               </h3>

@@ -6,7 +6,7 @@ import {
   ActiveIcon, CalendarIcon, CheckIcon, BroadcastIcon,
 } from './AdminDashboardWidgets'
 
-export function AdminDashboard({ onViewAllBatches, onCreateBatch, onViewResults, onManageRoster, onManageQuestions }) {
+export function AdminDashboard({ canManage = true, onViewAllBatches, onCreateBatch, onViewResults, onManageRoster, onManageQuestions }) {
   const [live,      setLive]      = useState([])
   const [upcoming,  setUpcoming]  = useState([])
   const [completed, setCompleted] = useState([])
@@ -94,9 +94,11 @@ export function AdminDashboard({ onViewAllBatches, onCreateBatch, onViewResults,
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onCreateBatch} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
-            + New Batch
-          </button>
+          {canManage && onCreateBatch && (
+            <button onClick={onCreateBatch} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
+              + New Batch
+            </button>
+          )}
           <button onClick={onViewAllBatches} className="btn btn-secondary" style={{ padding: '8px 14px', fontSize: 13 }}>
             All Batches
           </button>

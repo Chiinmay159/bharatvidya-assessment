@@ -20,6 +20,7 @@ export function BatchListRow({
   batch, isLast,
   questionCounts, startedCounts, submissionCounts, rosterCounts,
   transitioning,
+  canManage = true, canMonitor = true,
   onSelectBatch, onManageQuestions, onManageRoster, onViewResults, onMissionControl,
   setCloneTarget, setDeleteTarget, setDeleteConfirmName, setConfirmAction,
 }) {
@@ -117,25 +118,25 @@ export function BatchListRow({
       {/* Actions */}
       <td style={{ padding: '13px 14px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-          <button onClick={() => onSelectBatch(batch)} className="action-link">Edit</button>
-          <button onClick={() => onManageQuestions(batch)} className="action-link">Questions</button>
-          <button onClick={() => onManageRoster(batch)} className="action-link">Roster</button>
+          {canManage && <button onClick={() => onSelectBatch(batch)} className="action-link">Edit</button>}
+          {canManage && <button onClick={() => onManageQuestions(batch)} className="action-link">Questions</button>}
+          {canManage && <button onClick={() => onManageRoster(batch)} className="action-link">Roster</button>}
           {(batch.status === 'active' || batch.status === 'completed') && (
             <button onClick={() => onViewResults(batch)} className="action-link">Results</button>
           )}
-          {batch.status === 'active' && onMissionControl && (
+          {batch.status === 'active' && canMonitor && onMissionControl && (
             <button onClick={() => onMissionControl(batch)} className="action-link" style={{ fontWeight: 700 }}>Live</button>
           )}
-          <button onClick={() => setCloneTarget(batch)} className="action-link">Clone</button>
-          <button
+          {canManage && <button onClick={() => setCloneTarget(batch)} className="action-link">Clone</button>}
+          {canManage && <button
             onClick={() => { setDeleteTarget(batch); setDeleteConfirmName('') }}
             className="action-link"
             style={{ color: 'var(--error)' }}
           >
             Delete
-          </button>
+          </button>}
 
-          {transitions.map(t => (
+          {canManage && transitions.map(t => (
             <button
               key={t.next}
               onClick={() => setConfirmAction({ batchId: batch.id, ...t })}

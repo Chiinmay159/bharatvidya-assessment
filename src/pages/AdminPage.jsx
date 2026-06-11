@@ -28,23 +28,32 @@ export function AdminPage() {
   const [view,          setView]          = useState('dashboard')
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [orgLabel,      setOrgLabel]      = useState(null)
+  const [role,          setRole]          = useState(null) // owner|examiner|invigilator|viewer
 
-  // Tenant-aware header: org-scoped admins see their institution's name.
+  // Tenant-aware header + role gating for the UI.
   useEffect(() => {
     if (!user?.email) return
     let cancelled = false
     supabase
       .from('admin_users')
-      .select('organization_id, organizations(name, display_name)')
+      .select('role, organization_id, organizations(name, display_name)')
       .eq('email', user.email)
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return
         const org = data?.organizations
         setOrgLabel(org ? (org.display_name ?? org.name) : 'Matra')
+        setRole(data?.role ?? null)
+        // Invigilators monitor exams — land them on the batch list (where "Live" lives)
+        if (data?.role === 'invigilator') setView('batches')
       })
     return () => { cancelled = true }
   }, [user?.email])
+
+  // Capability flags derived from role (UI layer; the DB enforces the truth)
+  const canManage  = role === 'owner' || role === 'examiner'      // create/edit/delete exam content
+  const canMonitor = role !== 'viewer'                            // mission control + time extensions
+  const isOwner    = role === 'owner'
 
   useEffect(() => {
     // Authorization is role-based (admin_users table) — checked server-side
@@ -141,24 +150,29 @@ export function AdminPage() {
   function handleViewResults(batch)     { setSelectedBatch(batch); setView('results') }
   function handleBatchSaved()           { goDashboard() }
 
-  /* ── Nav tabs (for AdminLayout to render) ─── */
+  /* ── Nav tabs, filtered by role ──────────────────────────────
+     viewer:      Dashboard, All Batches, Insights, Activity Log (read-only)
+     invigilator: + nothing extra (monitors via batch "Live")
+     examiner:    + Question Bank, Series, Students
+     owner:       + Team                                              */
   const navItems = [
-    { label: 'Dashboard', active: view === 'dashboard',    onClick: goDashboard },
-    { label: 'All Batches', active: view === 'batches',    onClick: goToBatches },
-    { label: 'Question Bank', active: view === 'question-bank', onClick: () => setView('question-bank') },
-    { label: 'Series', active: view === 'series', onClick: () => setView('series') },
-    { label: 'Students', active: view === 'students', onClick: () => setView('students') },
-    { label: 'Team', active: view === 'team', onClick: () => setView('team') },
-    { label: 'Insights', active: view === 'insights', onClick: () => setView('insights') },
-    { label: 'Activity Log', active: view === 'activity-log', onClick: () => setView('activity-log') },
-  ]
+    { label: 'Dashboard', active: view === 'dashboard',    onClick: goDashboard, show: true },
+    { label: 'All Batches', active: view === 'batches',    onClick: goToBatches, show: true },
+    { label: 'Question Bank', active: view === 'question-bank', onClick: () => setView('question-bank'), show: canManage },
+    { label: 'Series', active: view === 'series', onClick: () => setView('series'), show: canManage },
+    { label: 'Students', active: view === 'students', onClick: () => setView('students'), show: canManage },
+    { label: 'Team', active: view === 'team', onClick: () => setView('team'), show: isOwner },
+    { label: 'Insights', active: view === 'insights', onClick: () => setView('insights'), show: true },
+    { label: 'Activity Log', active: view === 'activity-log', onClick: () => setView('activity-log'), show: true },
+  ].filter(i => i.show)
 
   return (
     <AdminLayout user={user} navItems={navItems} orgLabel={orgLabel}>
       {view === 'dashboard' && (
         <AdminDashboard
+          canManage={canManage}
           onViewAllBatches={goToBatches}
-          onCreateBatch={() => setView('create-batch')}
+          onCreateBatch={canManage ? () => setView('create-batch') : undefined}
           onViewResults={handleViewResults}
           onManageRoster={handleManageRoster}
           onManageQuestions={handleManageQuestions}
@@ -167,8 +181,10 @@ export function AdminPage() {
 
       {view === 'batches' && (
         <BatchList
+          canManage={canManage}
+          canMonitor={canMonitor}
           onSelectBatch={handleSelectBatch}
-          onCreateBatch={() => setView('create-batch')}
+          onCreateBatch={canManage ? () => setView('create-batch') : undefined}
           onViewResults={handleViewResults}
           onManageQuestions={handleManageQuestions}
           onManageRoster={handleManageRoster}
@@ -217,6 +233,7 @@ export function AdminPage() {
       {view === 'results' && selectedBatch && (
         <ResultsView
           batch={selectedBatch}
+          canManage={canManage}
           onBack={goToBatches}
           onViewAnalytics={() => setView('analytics')}
           onViewCertificates={() => setView('certificates')}
@@ -228,7 +245,7 @@ export function AdminPage() {
       )}
 
       {view === 'certificates' && selectedBatch && (
-        <CertificatesPanel batch={selectedBatch} onBack={() => setView('results')} />
+        <CertificatesPanel batch={selectedBatch} canManage={canManage} onBack={() => setView('results')} />
       )}
 
       {view === 'question-bank' && (
