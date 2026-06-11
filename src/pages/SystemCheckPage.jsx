@@ -135,7 +135,7 @@ export function SystemCheckPage() {
               Sample question text — confirm this is readable:
             </div>
             <p lang="hi" style={{ margin: 0, fontSize: 16, color: 'var(--text-1)', lineHeight: 1.7 }}>
-              भारतविद्या परीक्षा में आपका स्वागत है। क्षेत्रज्ञ, धर्मशास्त्र, ज्ञानमार्ग।
+              परीक्षा में आपका स्वागत है। क्षेत्रज्ञ, धर्मशास्त्र, ज्ञानमार्ग।
             </p>
           </div>
 

@@ -25,6 +25,24 @@ export function AdminPage() {
   const [authError,     setAuthError]     = useState(null)
   const [view,          setView]          = useState('dashboard')
   const [selectedBatch, setSelectedBatch] = useState(null)
+  const [orgLabel,      setOrgLabel]      = useState(null)
+
+  // Tenant-aware header: org-scoped admins see their institution's name.
+  useEffect(() => {
+    if (!user?.email) return
+    let cancelled = false
+    supabase
+      .from('admin_users')
+      .select('organization_id, organizations(name, display_name)')
+      .eq('email', user.email)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        const org = data?.organizations
+        setOrgLabel(org ? (org.display_name ?? org.name) : 'Matra')
+      })
+    return () => { cancelled = true }
+  }, [user?.email])
 
   useEffect(() => {
     // Authorization is role-based (admin_users table) — checked server-side
@@ -79,7 +97,7 @@ export function AdminPage() {
             <img src="/logo.png" alt="BharatVidya" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <h1 style={{ margin: '0 0 4px', fontSize: 21, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-.35px' }}>Admin Portal</h1>
-          <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>BharatVidya Exams · Restricted access</p>
+          <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>Matra Assessment Platform · Restricted access</p>
 
           {authError && (
             <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16, textAlign: 'left', lineHeight: 1.5 }}>
@@ -132,7 +150,7 @@ export function AdminPage() {
   ]
 
   return (
-    <AdminLayout user={user} navItems={navItems}>
+    <AdminLayout user={user} navItems={navItems} orgLabel={orgLabel}>
       {view === 'dashboard' && (
         <AdminDashboard
           onViewAllBatches={goToBatches}

@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export function AdminLayout({ user, children, navItems = [] }) {
+export function AdminLayout({ user, children, navItems = [], orgLabel }) {
   const tabsRef = useRef(null)
 
   const handleTabKeyDown = useCallback((e) => {
@@ -45,9 +45,9 @@ export function AdminLayout({ user, children, navItems = [] }) {
       }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 20, borderRight: '1px solid var(--border)', flexShrink: 0 }}>
-          <img src="/logo.png" alt="BharatVidya" style={{ width: 30, height: 30, borderRadius: '50%' }} />
+          <img src="/logo.png" alt="" style={{ width: 30, height: 30, borderRadius: '50%' }} />
           <div style={{ lineHeight: 1.2 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-1)', letterSpacing: '-.1px' }}>BharatVidya</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-1)', letterSpacing: '-.1px' }}>{orgLabel ?? 'Matra'}</div>
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', letterSpacing: '.04em', textTransform: 'uppercase' }}>Admin Portal</div>
           </div>
         </div>

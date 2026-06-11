@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
+import { LandingPage } from './pages/LandingPage'
 import { StudentPage } from './pages/StudentPage'
 import { SystemCheckPage } from './pages/SystemCheckPage'
 import { VerifyPage } from './pages/VerifyPage'
@@ -26,7 +27,8 @@ export default function App() {
           Skip to main content
         </a>
         <Routes>
-          <Route path="/" element={<StudentPage />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/exam" element={<StudentPage />} />
           <Route path="/check" element={<SystemCheckPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route

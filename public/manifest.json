@@ -1,8 +1,8 @@
 {
-  "name": "BharatVidya Exams",
-  "short_name": "BV Exams",
-  "description": "Online examination platform for Indian Knowledge Systems by BharatVidya",
-  "start_url": "/",
+  "name": "Matra Assessment Platform",
+  "short_name": "Matra Exams",
+  "description": "Secure online examinations with verifiable certificates — Matra Assessment Platform",
+  "start_url": "/exam",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#C9A227",

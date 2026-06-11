@@ -10,27 +10,39 @@ export function BatchSelect({ onSelectBatch }) {
   const [rollFilter, setRollFilter] = useState('')
   const [filtered,   setFiltered]   = useState([])
   const [filtering,  setFiltering]  = useState(false)
+  const [orgs,       setOrgs]       = useState({}) // org id → { display_name, logo_url }
 
   useEffect(() => {
     let cancelled = false
     async function fetchBatches() {
-      const { data, error } = await supabase
-        .from('batches')
-        // access_code is hidden via column-level REVOKE; has_access_code is a
-        // server-side generated boolean so the client never sees the real code
-        .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, has_access_code, show_results, pass_percentage, max_attempts')
-        .in('status', ['scheduled', 'active'])
-        .order('scheduled_start', { ascending: true })
+      const [{ data, error }, orgRes] = await Promise.all([
+        supabase
+          .from('batches')
+          // access_code is hidden via column-level REVOKE; has_access_code is a
+          // server-side generated boolean so the client never sees the real code
+          .select('id, name, scheduled_start, duration_minutes, status, questions_per_student, has_access_code, show_results, pass_percentage, max_attempts, organization_id')
+          .in('status', ['scheduled', 'active'])
+          .order('scheduled_start', { ascending: true }),
+        // Tenant branding: anon-visible fields of orgs with public batches
+        supabase.from('organizations').select('id, name, display_name, logo_url'),
+      ])
 
       if (cancelled) return
       if (error) setError('Failed to load exam batches. Please refresh.')
       else { setBatches(data || []); setError(null) }
+      if (orgRes.data) setOrgs(Object.fromEntries(orgRes.data.map(o => [o.id, o])))
       setLoading(false)
     }
     fetchBatches()
     const interval = setInterval(fetchBatches, 30_000)
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
+
+  // Attach institution branding to the batch handed up the flow
+  function selectWithOrg(batch) {
+    onSelectBatch({ ...batch, org: orgs[batch.organization_id] ?? null })
+  }
+  const multiOrg = new Set(batches.map(b => b.organization_id).filter(Boolean)).size > 1
 
   useEffect(() => {
     if (!rollFilter.trim() || !batches.length) {
@@ -69,11 +81,13 @@ export function BatchSelect({ onSelectBatch }) {
       {/* ── Hero ──────────────────────────────────────────── */}
       <div style={{ background: 'var(--gradient-hero)', padding: '32px 24px 56px' }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          {/* Brand bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
-            <img src="/logo.png" alt="BharatVidya" style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, boxShadow: '0 0 0 2px rgba(255,255,255,.2)' }} />
-            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.7)', fontSize: 15, letterSpacing: '-.1px' }}>
-              BharatVidya Exams
+          {/* Brand bar — platform identity until an institution's exam is chosen */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 36 }}>
+            <span style={{ fontWeight: 800, color: 'rgba(255,255,255,.85)', fontSize: 16, letterSpacing: '-.2px' }}>
+              Matra
+            </span>
+            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.5)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+              Assessment Platform
             </span>
           </div>
           <h1 className="hero-title" style={{ margin: '0 0 8px', fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#fff', letterSpacing: '-.6px', lineHeight: 1.15 }}>
@@ -170,9 +184,15 @@ export function BatchSelect({ onSelectBatch }) {
               const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
 
               return (
-                <button key={batch.id} className="batch-card" aria-label={`Select exam: ${batch.name}`} onClick={() => onSelectBatch(batch)} style={{ padding: '18px 20px 16px' }}>
+                <button key={batch.id} className="batch-card" aria-label={`Select exam: ${batch.name}`} onClick={() => selectWithOrg(batch)} style={{ padding: '18px 20px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ minWidth: 0 }}>
+                      {/* Institution label (shown when batches span institutions) */}
+                      {multiOrg && orgs[batch.organization_id] && (
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent-deep)', marginBottom: 3 }}>
+                          {orgs[batch.organization_id].display_name ?? orgs[batch.organization_id].name}
+                        </div>
+                      )}
                       <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-1)', marginBottom: 5, letterSpacing: '-.15px' }}>
                         {batch.name}
                       </div>

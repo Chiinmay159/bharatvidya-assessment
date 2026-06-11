@@ -15,9 +15,19 @@ export function Instructions({ batch, rollNumber, onBegin }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
       {/* Header */}
-      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <img src="/logo.png" alt="BharatVidya" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
-        <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 15 }}>BharatVidya Exams</span>
+      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        {/* Tenant branding: the institution whose exam this is */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {batch.org?.logo_url && (
+            <img src={batch.org.logo_url} alt="" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
+          )}
+          <span style={{ fontWeight: 600, color: 'var(--text-1)', fontSize: 15 }}>
+            {batch.org?.display_name ?? batch.org?.name ?? 'Examination'}
+          </span>
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
+          via Matra
+        </span>
       </header>
 
       {/* Body */}
