@@ -80,7 +80,11 @@ git push origin main      # CI runs, then Vercel auto-deploys to the live domain
     <tr><td>021</td><td>Org-scope every admin table policy &amp; RPC</td></tr>
     <tr><td>022</td><td>Student RPCs verify email, not name</td></tr>
     <tr><td>023</td><td>Per-org question bank + org-scoped audit log</td></tr>
+    <tr><td>024</td><td>Program analytics RPC (Insights dashboard)</td></tr>
+    <tr><td>025</td><td>Role-gate all writes (viewer/invigilator = no destructive ops); certificate revoke/restore</td></tr>
+    <tr><td>026</td><td>Failure-based rate limiting on code lookup &amp; identity probe</td></tr>
   </table>
+  <p><strong>Edge functions:</strong> <code>email-results</code> (results email, auth-gated) and <code>manage-admin</code> (owner-gated admin provisioning — holds the service-role key). Deployed via Supabase; redeploy with the dashboard or the management tooling.</p>
 
   <h2>5. Runbooks</h2>
 
@@ -88,9 +92,20 @@ git push origin main      # CI runs, then Vercel auto-deploys to the live domain
   <ol>
     <li><strong>Team</strong> tab → Organisations → add the college (name; optionally display name/logo via the DB).</li>
     <li>Add their admin(s) by email with role <em>examiner</em> (or <em>owner</em> for their own org), scoped to their organisation.</li>
-    <li>They sign in with Google and see only their own exams, students, bank, and audit. Verified isolation is enforced at the database level.</li>
+    <li>They see only their own exams, students, bank, and audit. Isolation is enforced at the database level (verified by penetration test).</li>
     <li>Decide whether any of your BharatVidya bank questions should be shared (set their <code>organization_id</code> to NULL) — otherwise each org's bank is private.</li>
   </ol>
+
+  <h3>Add or manage an admin (entirely in-app — no Supabase dashboard)</h3>
+  <p>All admin management is in the <strong>Team</strong> tab. You never need the Supabase dashboard for this.</p>
+  <ul>
+    <li><strong>Google admin</strong> — enter their email + role + institution, leave the password blank, click <em>Add admin</em>. They sign in at <code>/admin</code> with "Sign in with Google". (Works when their email is a Google/Google-Workspace account.)</li>
+    <li><strong>Password admin</strong> (institutions not on Google) — same, but type a password (min 8 chars). The account is created instantly via an owner-gated edge function (<code>manage-admin</code>); the service key lives only in the edge runtime, never in the browser. They sign in with email + password.</li>
+    <li><strong>Set / reset a password</strong> — the <em>Set password</em> button on any admin row.</li>
+    <li><strong>Remove an admin</strong> — <em>Remove</em> deletes both the admin grant and any password login. Access is revoked immediately.</li>
+    <li>Org-scoped owners can only manage admins within their own institution; global owners (you) manage all.</li>
+  </ul>
+  <p><strong>Why "Allow new users to sign up" is left ON in Supabase Auth.</strong> The real access boundary is the <code>admin_users</code> table — a self-registered stranger has no row and is bounced at login (confirmed by pentest). Signups must stay <em>on</em> because a teacher's first Google sign-in <em>is</em> a signup; turning it off would block every new Google admin from ever logging in, while doing nothing for security (the gate already handles it). Leave it on. Password provisioning works regardless, because the edge function uses the admin API which bypasses the toggle.</p>
 
   <h3>Run a large (1,000–2,000+) exam</h3>
   <ol>
@@ -123,12 +138,14 @@ git push origin main      # CI runs, then Vercel auto-deploys to the live domain
     <li><strong>Entry</strong> = exam code (routing) + roll&nbsp;+&nbsp;email match against roster (the credential), enforced inside <code>create_attempt</code>.</li>
     <li><strong>Deadline</strong> and <strong>response-belongs-to-batch</strong> enforced server-side.</li>
     <li><strong>Tenant isolation:</strong> every admin policy and RPC is org-scoped via <code>batch_in_my_org()</code> / <code>attempt_in_my_org()</code> / <code>series_in_my_org()</code>. Global admins (org = NULL) see all.</li>
+    <li><strong>Role tier</strong> enforced server-side: viewer = read-only, invigilator = monitor + time-extensions only, examiner/owner = manage content; verified against the live DB.</li>
+    <li><strong>Failure-based rate limiting</strong> on code lookup &amp; identity probe — throttles only failed attempts per IP, so a shared-campus IP is never blocked while a brute-forcer is cut off (~25 misses / 15 min).</li>
     <li><strong>Single session</strong> per student via rotating tokens; <strong>audit log</strong> for destructive actions.</li>
+    <li><strong>Penetration tested</strong> (June 2026, <code>PENTEST-REPORT.md</code>): 24 attacks as an anon key-holder, all refused; a fully authenticated student decrypting the live paper obtains no answer key.</li>
   </ul>
 
   <h2>7. Known follow-ups (not yet done)</h2>
   <ul>
-    <li><strong>Rate limiting</strong> on <code>find_batch_by_code</code> — needs gateway/edge config (Postgres can't do it cleanly). Low risk given 8-char codes + roster-identity backstop.</li>
     <li><strong>Internationalised UI strings</strong> (EN/HI/MR) — architecture is ready; it's a content project. Devanagari content already renders.</li>
     <li><strong>Series certificate</strong> distinct from module certificates — small addition if a college asks.</li>
     <li><strong>Custom per-tenant logo upload UI</strong> — the <code>organizations.logo_url</code> field exists; editing it from the UI is a minor add.</li>
@@ -144,6 +161,9 @@ git push origin main      # CI runs, then Vercel auto-deploys to the live domain
     <tr><td>Exam not found by code</td><td>Batch not <em>scheduled</em>/<em>active</em>, or an old batch created before codes existed (active batches keep their original code). Recreate if needed.</td></tr>
     <tr><td>Deploy stuck "Initializing"</td><td>Vercel queue hiccup — push an empty commit or Redeploy.</td></tr>
     <tr><td>Compose says "bank has only N…"</td><td>Not enough <em>approved</em> questions for that topic/difficulty in this org's bank (+shared). Approve more or relax the blueprint.</td></tr>
+    <tr><td>New Google admin can't sign in</td><td>"Allow new users to sign up" was turned off in Supabase Auth — turn it back on (a first Google login is a signup). The <code>admin_users</code> gate is the real boundary, so signups-on is safe.</td></tr>
+    <tr><td>Password admin can't log in</td><td>Email provider must be enabled (Auth → Sign In / Providers → Email). The account itself is created from the Team tab.</td></tr>
+    <tr><td>"Too many attempts" on the exam code page</td><td>Rate limit tripped by ≥25 wrong codes/identities from one IP in 15 min. Legitimate users (correct code/identity) are never throttled; wait a few minutes.</td></tr>
   </table>
 
   <h2>9. Cost</h2>
