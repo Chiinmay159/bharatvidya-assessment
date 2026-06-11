@@ -1,37 +1,61 @@
 @import "tailwindcss";
 
 /* ── Design tokens ───────────────────────────────────────── */
-/* BharatVidya Maroon & Gold palette.  4px max radius.       */
-/* Ink scale for text.  Warm neutrals for surfaces.          */
+/* Matra heritage palette: ink blue, burgundy, antique gold,  */
+/* ivory. √2 type & spacing scale. 4px max radius. Ink scale  */
+/* for text. Apple clarity, Airbnb warmth, heritage soul.     */
 :root {
   --font-sans:    system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: Georgia, 'Playfair Display', serif;
+  --font-display: Georgia, 'Playfair Display', 'Times New Roman', serif;
   --font-mono:    ui-monospace, 'SF Mono', Consolas, monospace;
 
-  /* Surfaces — warm pearl */
-  --bg:            #FAF9F7;
+  /* Typography — √2 scale */
+  --text-xl: 50px;
+  --text-lg: 35px;
+  --text-md: 24px;
+  --text-sm: 17px;
+  --text-xs: 12px;
+
+  /* Spacing — √2 scale */
+  --space-3xl: 100px;
+  --space-2xl: 70px;
+  --space-xl:  50px;
+  --space-lg:  35px;
+  --space-md:  24px;
+  --space-sm:  17px;
+  --space-xs:  12px;
+
+  /* Surfaces — ivory */
+  --bg:            #FAF8F2;
   --surface:       #FFFFFF;
-  --surface-2:     #F5F2EF;
-  --surface-hover: #FDF8F3;
+  --surface-2:     #F4F0E7;
+  --surface-hover: #FCF9F1;
 
   /* Borders — warm taupe */
-  --border:        #E8E2DA;
-  --border-md:     #D4CCC2;
+  --border:        #E9E2D4;
+  --border-md:     #D5CCBA;
 
   /* Text — ink scale (smaller text = darker) */
-  --text-1:        #1A1A1A;
-  --text-2:        #474747;
-  --text-3:        #6B6B6B;
+  --text-1:        #1C1B18;
+  --text-2:        #45433D;
+  --text-3:        #6B685F;
 
-  /* Accent — antique gold */
+  /* Accent — antique gold (the action thread) */
   --accent:        #C9A227;
   --accent-deep:   #A8871E;
-  --accent-lt:     #FBF5E6;
+  --accent-lt:     #FBF5E2;
   --accent-md:     #E8D48A;
 
-  /* Brand — maroon */
+  /* Brand — heritage ink blue (structure: heroes, headers, dark sections) */
+  --blue-deep:     #101D33;
+  --blue:          #1B2D4F;
+  --blue-mid:      #2A4571;
+  --blue-lt:       #EDF1F7;
+
+  /* Brand — burgundy (warmth: tenant layer, emphasis) */
   --maroon:        #4A1219;
   --maroon-mid:    #6B1C23;
+  --maroon-lt:     #F9F0F0;
 
   /* Semantic — muted, not neon */
   --success:       #2D6A4F;
@@ -42,17 +66,18 @@
   --warn:          #92400E;
   --warn-lt:       #FFF8EB;
 
-  /* Brand gradients — maroon, not purple */
-  --gradient-hero:  linear-gradient(150deg, #2D0A0E 0%, #4A1219 50%, #6B1C23 100%);
-  --gradient-brand: linear-gradient(135deg, #4A1219 0%, #6B1C23 100%);
+  /* Brand gradients — ink blue flowing into burgundy */
+  --gradient-hero:  linear-gradient(150deg, #0D1830 0%, #1B2D4F 55%, #3A1521 130%);
+  --gradient-brand: linear-gradient(135deg, #1B2D4F 0%, #4A1219 140%);
+  --gradient-deep:  linear-gradient(165deg, #0D1830 0%, #14233E 100%);
 
-  /* Shadows — warm tint from maroon */
-  --shadow-sm:         0 1px 2px rgba(74,18,25,.04), 0 1px 3px rgba(0,0,0,.03);
-  --shadow-md:         0 2px 8px rgba(74,18,25,.05), 0 6px 20px rgba(0,0,0,.04);
-  --shadow-lg:         0 4px 16px rgba(74,18,25,.06), 0 12px 40px rgba(0,0,0,.06);
-  --shadow-xl:         0 8px 32px rgba(74,18,25,.08), 0 24px 60px rgba(0,0,0,.10);
+  /* Shadows — cool ink tint, warm gold on hover */
+  --shadow-sm:         0 1px 2px rgba(16,29,51,.05), 0 1px 3px rgba(0,0,0,.03);
+  --shadow-md:         0 2px 8px rgba(16,29,51,.06), 0 6px 20px rgba(0,0,0,.04);
+  --shadow-lg:         0 4px 16px rgba(16,29,51,.07), 0 12px 40px rgba(0,0,0,.06);
+  --shadow-xl:         0 8px 32px rgba(16,29,51,.09), 0 24px 60px rgba(0,0,0,.10);
   --shadow-focus:      0 0 0 3px rgba(201,162,39,.2);
-  --shadow-card-hover: 0 2px 12px rgba(201,162,39,.1), 0 1px 4px rgba(0,0,0,.03);
+  --shadow-card-hover: 0 2px 12px rgba(201,162,39,.12), 0 1px 4px rgba(0,0,0,.03);
 
   /* Radius — tight, not bubbly.  4px max. */
   --radius-xs:   2px;
@@ -127,6 +152,23 @@ body {
 .u-timer-urgent { animation: timerUrgent .9s ease-in-out infinite; }
 .u-spin         { animation: spin 1s linear infinite; }
 .u-score-reveal { animation: scoreReveal .35s var(--ease-spring) both; }
+
+/* ── Door card (landing) ─────────────────────────────────── */
+.door-card {
+  transition:
+    transform    var(--t-base) var(--ease-smooth),
+    box-shadow   var(--t-base) var(--ease-smooth),
+    border-color var(--t-base) var(--ease-smooth);
+}
+.door-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--accent-md);
+}
+@media (prefers-reduced-motion: reduce) {
+  .door-card { transition: none !important; }
+  .door-card:hover { transform: none; }
+}
 
 /* ── Card ────────────────────────────────────────────────── */
 .card {

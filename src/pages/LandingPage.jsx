@@ -3,78 +3,122 @@ import { Link } from 'react-router-dom'
 /**
  * LandingPage — Matra Assessment Platform (route: /).
  *
- * A router, not a brochure: tells each visitor where they are and what
- * to do next, above the fold, on a mid-range phone. Students arriving
- * minutes before an exam must reach their door instantly — keep this
- * page static, light, and dependency-free (no data fetching).
+ * Heritage design language: ink-blue hero under a gold rule, serif
+ * display, ivory cards. A router, not a brochure — each visitor finds
+ * their door above the fold on a mid-range phone. Static and light:
+ * nothing here touches the exam-day critical path.
  */
 export function LandingPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Header ── */}
-      <header style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <Wordmark />
-        <Link to="/admin" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', textDecoration: 'none' }}>
-          Administrator sign in →
-        </Link>
+      {/* Gold rule — the heritage signature */}
+      <div aria-hidden="true" style={{ height: 3, background: 'linear-gradient(90deg, var(--accent-deep), var(--accent) 40%, var(--accent-md))' }} />
+
+      {/* ── Hero (ink blue) ── */}
+      <header style={{ background: 'var(--gradient-hero)', padding: '0 24px' }}>
+        <div style={{ maxWidth: 880, margin: '0 auto' }}>
+
+          {/* Top bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-sm) 0' }}>
+            <Wordmark />
+            <Link to="/admin" style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.65)', textDecoration: 'none' }}>
+              Administrator sign in →
+            </Link>
+          </div>
+
+          {/* Headline */}
+          <div style={{ padding: 'var(--space-xl) 0 var(--space-2xl)', textAlign: 'center' }}>
+            <h1 style={{
+              margin: '0 0 var(--space-sm)',
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(30px, 5.5vw, var(--text-xl))',
+              fontWeight: 700, lineHeight: 1.18, letterSpacing: '-.5px',
+              color: '#FDFBF5',
+            }}>
+              Secure examinations,<br />
+              <span style={{ color: 'var(--accent-md)' }}>verifiable</span> results.
+            </h1>
+            <p style={{ margin: '0 auto', fontSize: 'var(--text-sm)', color: 'rgba(253,251,245,.62)', maxWidth: 460, lineHeight: 1.7 }}>
+              Matra conducts timed, proctored online assessments for institutions —
+              including <strong style={{ color: 'rgba(253,251,245,.9)', fontWeight: 600 }}>BharatVidya</strong>'s
+              examinations in Indian Knowledge Systems.
+            </p>
+          </div>
+        </div>
       </header>
 
-      {/* ── Hero + doors ── */}
-      <main id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px 56px', outline: 'none' }}>
-        <div style={{ width: '100%', maxWidth: 720, textAlign: 'center' }}>
+      {/* ── The two doors — ivory cards overlapping the hero ── */}
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, padding: '0 20px var(--space-xl)', outline: 'none' }}>
+        <div style={{ maxWidth: 880, margin: '0 auto' }}>
 
-          <h1 style={{ margin: '16px 0 10px', fontSize: 'clamp(26px, 5vw, 38px)', fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-.5px', lineHeight: 1.15 }}>
-            Secure online examinations,<br />verifiable results.
-          </h1>
-          <p style={{ margin: '0 auto 36px', fontSize: 15, color: 'var(--text-2)', maxWidth: 480, lineHeight: 1.65 }}>
-            Matra runs timed, proctored assessments for institutions —
-            including <strong style={{ color: 'var(--accent-deep)' }}>BharatVidya</strong>'s
-            examinations in Indian Knowledge Systems.
-          </p>
-
-          {/* The two doors */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 40, textAlign: 'left' }}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+            gap: 'var(--space-sm)', marginTop: -42, marginBottom: 'var(--space-xl)',
+          }}>
             <DoorCard
               to="/exam"
               primary
+              kicker="Students"
               title="I'm taking an exam"
-              desc="Find your scheduled exam, register with your roll number, and begin."
-              cta="Go to my exam →"
+              desc="Find your scheduled exam, register with your roll number, and begin. Your answers save continuously — even through connection drops."
+              cta="Go to my exam"
             />
             <DoorCard
               to="/admin"
+              kicker="Institutions"
               title="I run exams"
-              desc="Create papers from your question bank, monitor exams live, publish results."
-              cta="Open the admin portal →"
+              desc="Compose papers from a reviewed question bank, monitor every student live on exam day, and publish results with verifiable certificates."
+              cta="Open the admin portal"
             />
           </div>
 
-          {/* Student path: the three steps */}
-          <div style={{ textAlign: 'left', marginBottom: 36 }}>
-            <h2 style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)', margin: '0 0 12px' }}>
-              Taking an exam? Your path:
+          {/* ── Student path — three numbered steps ── */}
+          <section style={{ marginBottom: 'var(--space-xl)' }}>
+            <h2 style={{
+              margin: '0 0 var(--space-sm)', textAlign: 'center',
+              fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', fontWeight: 700,
+              color: 'var(--text-1)', letterSpacing: '-.3px',
+            }}>
+              Taking an exam? Your path.
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-              <StepCard n="1" to="/check" title="Check your device" desc="Run a 30-second test of your connection, browser, and fonts — ideally a day before." />
-              <StepCard n="2" to="/exam" title="Take your exam" desc="On exam day, find your batch, register, and wait — it starts automatically on time." />
-              <StepCard n="3" to="/verify" title="Verify a certificate" desc="Anyone can confirm a certificate is genuine using the code or QR printed on it." />
-            </div>
-          </div>
+            <div aria-hidden="true" style={{ width: 48, height: 2, background: 'var(--accent)', margin: '0 auto var(--space-md)' }} />
 
-          <p style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>
-            Built for real conditions: exams resume after connection drops, answers save
-            continuously, and every certificate is independently verifiable.
-          </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-xs)' }}>
+              <StepCard n="1" to="/check" title="Check your device"
+                desc="A 30-second test of your connection, browser, and fonts — run it a day before, on the device you'll use." />
+              <StepCard n="2" to="/exam" title="Take your exam"
+                desc="On the day, find your batch and register. The exam begins automatically at the scheduled time." />
+              <StepCard n="3" to="/verify" title="Verify a certificate"
+                desc="Every certificate carries a code and QR. Anyone — an employer, a university — can confirm it is genuine." />
+            </div>
+          </section>
+
+          {/* ── Quiet trust strip ── */}
+          <section style={{
+            background: 'var(--gradient-deep)', borderRadius: 'var(--radius-md)',
+            padding: 'var(--space-md) var(--space-md)', textAlign: 'center',
+          }}>
+            <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 'var(--text-sm)', color: '#FDFBF5', lineHeight: 1.7 }}>
+              Built for real conditions —
+              <span style={{ color: 'var(--accent-md)' }}> 2,000 students at once</span>, exams that
+              survive network drops, and results an institution can stand behind.
+            </p>
+          </section>
         </div>
       </main>
 
-      <footer style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, background: 'var(--surface)' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>© {new Date().getFullYear()} Matra Media · Assessment Platform</span>
-        <nav aria-label="Footer" style={{ display: 'flex', gap: 16 }}>
-          <Link to="/check" style={footLink}>System check</Link>
-          <Link to="/verify" style={footLink}>Verify certificate</Link>
-        </nav>
+      {/* ── Footer ── */}
+      <footer style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)', padding: 'var(--space-sm) 24px' }}>
+        <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            © {new Date().getFullYear()} Matra Media · Assessment Platform
+          </span>
+          <nav aria-label="Footer" style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+            <Link to="/check" style={footLink}>System check</Link>
+            <Link to="/verify" style={footLink}>Verify certificate</Link>
+          </nav>
+        </div>
       </footer>
     </div>
   )
@@ -82,39 +126,54 @@ export function LandingPage() {
 
 function Wordmark() {
   return (
-    <div style={{ lineHeight: 1.15 }}>
-      <div style={{ fontWeight: 800, fontSize: 17, color: 'var(--text-1)', letterSpacing: '-.2px' }}>Matra</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-deep)', letterSpacing: '.08em', textTransform: 'uppercase' }}>Assessment Platform</div>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, color: '#FDFBF5', letterSpacing: '-.2px' }}>
+        Matra
+      </span>
+      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-md)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
+        Assessment Platform
+      </span>
     </div>
   )
 }
 
-function DoorCard({ to, title, desc, cta, primary }) {
+function DoorCard({ to, kicker, title, desc, cta, primary }) {
   return (
-    <Link to={to} className="card" style={{
-      display: 'block', padding: '22px 22px 18px', textDecoration: 'none',
-      border: primary ? '2px solid var(--accent)' : '1px solid var(--border)',
-      background: primary ? 'var(--accent-lt)' : 'var(--surface)',
+    <Link to={to} className="door-card" style={{
+      display: 'flex', flexDirection: 'column', padding: 'var(--space-md)',
+      textDecoration: 'none', background: 'var(--surface)',
+      border: primary ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+      borderTop: primary ? '3px solid var(--accent)' : '3px solid var(--blue)',
+      borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
     }}>
-      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>{title}</div>
-      <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>{desc}</p>
-      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-deep)' }}>{cta}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: primary ? 'var(--accent-deep)' : 'var(--blue-mid)', marginBottom: 6 }}>
+        {kicker}
+      </span>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px', marginBottom: 8 }}>
+        {title}
+      </span>
+      <p style={{ margin: '0 0 var(--space-sm)', fontSize: 14, color: 'var(--text-2)', lineHeight: 1.65, flex: 1 }}>
+        {desc}
+      </p>
+      <span style={{ fontSize: 14, fontWeight: 700, color: primary ? 'var(--accent-deep)' : 'var(--blue-mid)' }}>
+        {cta} <span aria-hidden="true">→</span>
+      </span>
     </Link>
   )
 }
 
 function StepCard({ n, to, title, desc }) {
   return (
-    <Link to={to} className="card" style={{ display: 'flex', gap: 12, padding: '14px 16px', textDecoration: 'none', alignItems: 'flex-start' }}>
+    <Link to={to} className="card door-card" style={{ display: 'flex', gap: 'var(--space-xs)', padding: 'var(--space-sm)', textDecoration: 'none', alignItems: 'flex-start' }}>
       <span aria-hidden="true" style={{
-        flexShrink: 0, width: 26, height: 26, borderRadius: '50%',
-        background: 'var(--accent-lt)', border: '1px solid var(--accent-md)',
+        flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
+        background: 'var(--blue)', color: 'var(--accent-md)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 13, fontWeight: 700, color: 'var(--accent-deep)',
+        fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700,
       }}>{n}</span>
       <span>
-        <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{title}</span>
-        <span style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.55 }}>{desc}</span>
+        <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 3 }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6 }}>{desc}</span>
       </span>
     </Link>
   )
