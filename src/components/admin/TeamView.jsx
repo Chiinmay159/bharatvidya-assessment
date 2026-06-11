@@ -27,6 +27,7 @@ export function TeamView({ userEmail }) {
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('examiner')
   const [newOrg, setNewOrg] = useState('')
+  const [newPass, setNewPass] = useState('')
   const [busy, setBusy] = useState(false)
   // New org form
   const [newOrgName, setNewOrgName] = useState('')
@@ -54,18 +55,44 @@ export function TeamView({ userEmail }) {
   async function addAdmin(e) {
     e.preventDefault()
     if (!newEmail.trim()) return
+    const mail = newEmail.trim().toLowerCase()
     setBusy(true); setError(null); setNotice(null)
+
+    if (newPass) {
+      // Password account: provision the auth user + admin row in one step
+      if (newPass.length < 8) { setError('Password must be at least 8 characters.'); setBusy(false); return }
+      const { data, error: err } = await supabase.functions.invoke('manage-admin', {
+        body: { action: 'provision', email: mail, role: newRole, organization_id: newOrg || null, password: newPass },
+      })
+      setBusy(false)
+      if (err || data?.error) { setError(data?.error || 'Could not create the account.'); return }
+      setNotice(`${mail} added as ${newRole}. They can sign in at /admin with this email and password.`)
+      setNewEmail(''); setNewPass('')
+      load()
+      return
+    }
+
+    // Google account: just the admin grant (they sign in with Google)
     const { error: err } = await supabase.from('admin_users').insert({
-      email: newEmail.trim().toLowerCase(),
-      role: newRole,
-      organization_id: newOrg || null,
-      created_by: userEmail,
+      email: mail, role: newRole, organization_id: newOrg || null, created_by: userEmail,
     })
     setBusy(false)
     if (err) { setError(formatDbError(err, 'Could not add admin.')); return }
-    setNotice(`${newEmail.trim()} added as ${newRole}. They can now sign in at /admin with Google.`)
+    setNotice(`${mail} added as ${newRole}. They can sign in at /admin with Google.`)
     setNewEmail('')
     load()
+  }
+
+  async function setPassword(admin) {
+    const pw = window.prompt(`Set a new password for ${admin.email} (min 8 chars):`, '')
+    if (pw === null) return
+    if (pw.length < 8) { setError('Password must be at least 8 characters.'); return }
+    setError(null); setNotice(null)
+    const { data, error: err } = await supabase.functions.invoke('manage-admin', {
+      body: { action: 'provision', email: admin.email, role: admin.role, organization_id: admin.organization_id, password: pw },
+    })
+    if (err || data?.error) setError(data?.error || 'Could not set the password.')
+    else setNotice(`Password set for ${admin.email}.`)
   }
 
   async function changeRole(admin, role) {
@@ -83,11 +110,18 @@ export function TeamView({ userEmail }) {
   }
 
   async function removeAdmin(admin) {
-    if (!window.confirm(`Remove ${admin.email}? They will immediately lose admin access.`)) return
-    setError(null)
-    const { error: err } = await supabase.from('admin_users').delete().eq('id', admin.id)
-    if (err) setError(formatDbError(err, 'Removal failed.'))
-    else { setNotice(`${admin.email} removed.`); load() }
+    if (!window.confirm(`Remove ${admin.email}? They will immediately lose admin access (and any password login is deleted).`)) return
+    setError(null); setNotice(null)
+    // deprovision cleans up the auth user (if any) AND the admin grant
+    const { data, error: err } = await supabase.functions.invoke('manage-admin', {
+      body: { action: 'deprovision', email: admin.email },
+    })
+    if (err || data?.error) {
+      // Fallback: at least revoke the admin grant
+      const { error: delErr } = await supabase.from('admin_users').delete().eq('id', admin.id)
+      if (delErr) { setError(data?.error || formatDbError(delErr, 'Removal failed.')); return }
+    }
+    setNotice(`${admin.email} removed.`); load()
   }
 
   async function addOrg(e) {
@@ -167,6 +201,9 @@ export function TeamView({ userEmail }) {
                       <option value="">Global (all orgs)</option>
                       {orgs?.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                     </select>
+                    <button onClick={() => setPassword(a)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }} title="Create or reset a password for this account">
+                      Set password
+                    </button>
                     <button onClick={() => removeAdmin(a)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12, color: 'var(--error)', flexShrink: 0 }}>
                       Remove
                     </button>
@@ -197,12 +234,21 @@ export function TeamView({ userEmail }) {
                 <option value="">Global (all orgs)</option>
                 {orgs?.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+              <input
+                type="text" value={newPass} onChange={e => setNewPass(e.target.value)}
+                placeholder="Password (optional — leave blank for Google sign-in)" aria-label="Password for this admin"
+                autoComplete="new-password"
+                style={{ ...input, flex: '2 1 280px' }}
+              />
               <button type="submit" disabled={busy || !newEmail.trim()} className="btn btn-primary" style={{ padding: '9px 18px', flexShrink: 0 }}>
-                {busy ? <Spinner size={14} /> : 'Add'}
+                {busy ? <Spinner size={14} /> : 'Add admin'}
               </button>
             </div>
             <p style={{ margin: 0, fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
-              {ROLES.find(r => r.value === newRole)?.desc}. They sign in with Google using this email — no invitation needed.
+              {ROLES.find(r => r.value === newRole)?.desc}.
+              {' '}Leave password blank if they'll sign in with Google; set a password (min 8 chars) for institutions not on Google — created instantly, no dashboard needed.
             </p>
           </form>
         )}
