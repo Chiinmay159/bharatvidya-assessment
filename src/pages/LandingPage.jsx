@@ -61,7 +61,7 @@ export function LandingPage() {
               primary
               kicker="Students"
               title="I'm taking an exam"
-              desc="Find your scheduled exam, register with your roll number, and begin. Your answers save continuously — even through connection drops."
+              desc="Have your exam code ready — your institution shares it on the notice board or admit card. Enter it, verify your roll number and email, and begin."
               cta="Go to my exam"
             />
             <DoorCard
@@ -88,7 +88,7 @@ export function LandingPage() {
               <StepCard n="1" to="/check" title="Check your device"
                 desc="A 30-second test of your connection, browser, and fonts — run it a day before, on the device you'll use." />
               <StepCard n="2" to="/exam" title="Take your exam"
-                desc="On the day, find your batch and register. The exam begins automatically at the scheduled time." />
+                desc="On the day, enter your exam code and verify your details. The exam begins automatically at the scheduled time." />
               <StepCard n="3" to="/verify" title="Verify a certificate"
                 desc="Every certificate carries a code and QR. Anyone — an employer, a university — can confirm it is genuine." />
             </div>

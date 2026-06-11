@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { format } from 'date-fns'
-import { fromZonedTime } from 'date-fns-tz'
+import { fromZonedTime, formatInTimeZone } from 'date-fns-tz'
 import { Field } from '../shared/Field'
 
 export function BatchForm({ batch, onSaved, onCancel }) {
@@ -17,6 +17,7 @@ export function BatchForm({ batch, onSaved, onCancel }) {
     questions_per_student: batch?.questions_per_student ?? '',
     access_code:           batch?.access_code ?? '',
     show_results:          batch?.show_results ?? true,
+    listed:                batch?.listed ?? false,
     pass_percentage:       batch?.pass_percentage ?? '',
     max_attempts:          batch?.max_attempts ?? 1,
     organization_id:       batch?.organization_id ?? '',
@@ -85,6 +86,7 @@ export function BatchForm({ batch, onSaved, onCancel }) {
       questions_per_student: qps,
       access_code: code,
       show_results: form.show_results,
+      listed: form.listed,
       pass_percentage: passPct,
       max_attempts: maxAtt,
       organization_id: form.organization_id || null,
@@ -218,6 +220,40 @@ export function BatchForm({ batch, onSaved, onCancel }) {
           </label>
         </Field>
 
+        {/* Listed toggle (code gate) */}
+        <Field
+          label="Publicly listed"
+          hint="Off (default): students reach this exam only by entering its exam code. On: it also appears under 'Open exams' — for practice/open events."
+        >
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <div
+              onClick={() => set('listed', !form.listed)}
+              role="switch"
+              aria-checked={form.listed}
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); set('listed', !form.listed) } }}
+              style={{
+                width: 40, height: 22, borderRadius: 11,
+                background: form.listed ? 'var(--success)' : 'var(--border-md)',
+                position: 'relative', cursor: 'pointer',
+                transition: 'background .15s ease',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.15)',
+                position: 'absolute', top: 2,
+                left: form.listed ? 20 : 2,
+                transition: 'left .15s ease',
+              }} />
+            </div>
+            <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>
+              {form.listed ? 'Listed under Open exams' : 'Unlisted — exam code required'}
+            </span>
+          </label>
+        </Field>
+
         {/* Pass Percentage */}
         <Field
           label="Passing percentage (optional)"
@@ -260,16 +296,71 @@ export function BatchForm({ batch, onSaved, onCancel }) {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+        <div style={{ display: 'flex', gap: 10, paddingTop: 4, flexWrap: 'wrap' }}>
           <button type="submit" disabled={saving} style={{ ...btnPrimary, opacity: saving ? .6 : 1 }}>
             {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Batch'}
           </button>
           <button type="button" onClick={onCancel} style={btnSecondary}>Cancel</button>
+          {isEditing && (
+            <button type="button" onClick={() => downloadBatchSummary(batch, orgs)} style={btnSecondary}>
+              ⬇ Batch summary
+            </button>
+          )}
         </div>
+
+        {isEditing && batch?.access_code && (
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+            Exam code: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-1)', fontSize: 13, letterSpacing: '.08em' }}>{batch.access_code}</strong>
+            {' '}— share this with students (notice board / admit card). They enter it at exams.matramedia.co.in.
+          </p>
+        )}
 
       </div>
     </form>
   )
+}
+
+/** One-page summary for distribution/records: exam details, code, counts. */
+async function downloadBatchSummary(batch, orgs) {
+  const [{ count: qCount }, { count: rCount }, { count: aCount }] = await Promise.all([
+    supabase.from('questions').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id),
+    supabase.from('roster').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id),
+    supabase.from('attempts').select('*', { count: 'exact', head: true }).eq('batch_id', batch.id).not('submitted_at', 'is', null),
+  ])
+  const org = orgs.find(o => o.id === batch.organization_id)
+  const startIst = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', "EEEE, d MMMM yyyy 'at' hh:mm a")
+
+  const lines = [
+    'MATRA ASSESSMENT PLATFORM — BATCH SUMMARY',
+    '='.repeat(50),
+    '',
+    `Exam:               ${batch.name}`,
+    `Institution:        ${org?.name ?? '—'}`,
+    `Status:             ${batch.status}`,
+    '',
+    `Exam code:          ${batch.access_code ?? '—'}`,
+    `Student entry:      https://exams.matramedia.co.in/exam`,
+    '',
+    `Scheduled:          ${startIst} IST`,
+    `Duration:           ${batch.duration_minutes} minutes`,
+    `Questions in paper: ${qCount ?? 0}`,
+    `Per student:        ${batch.questions_per_student ?? 'all'}`,
+    `Pass percentage:    ${batch.pass_percentage ?? '—'}`,
+    `Max attempts:       ${batch.max_attempts ?? 1}`,
+    `Results visible:    ${batch.show_results === false ? 'no (moderated)' : 'yes'}`,
+    '',
+    `Students on roster: ${rCount ?? 0}${rCount === 0 ? '  (WARNING: no roster — anyone with the code can enter under any name)' : ''}`,
+    `Submitted attempts: ${aCount ?? 0}`,
+    '',
+    `Generated:          ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`,
+    `Batch ID:           ${batch.id}`,
+  ]
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `${batch.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-summary.txt`
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 

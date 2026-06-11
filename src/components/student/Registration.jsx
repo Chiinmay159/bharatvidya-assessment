@@ -8,13 +8,15 @@ import { Field } from '../shared/Field'
 
 export function Registration({ batch, onRegistered, onBack }) {
   const [rollNumber,  setRollNumber]  = useState('')
-  const [accessCode,  setAccessCode]  = useState('')
+  const [email,       setEmail]       = useState('')
+  // Exam code carried from the /exam gate — re-verified server-side anyway
+  const [accessCode,  setAccessCode]  = useState(batch.enteredCode ?? '')
   const [studentName, setStudentName] = useState('')
   const [submitting,  setSubmitting]  = useState(false)
   const [error,       setError]       = useState(null)
-  const [, setRosterEntry] = useState(null)
   const [lookingUp,   setLookingUp]   = useState(false)
   const [phase,       setPhase]       = useState('roll') // 'roll' | 'name' | 'ready'
+  const codeFromGate = Boolean(batch.enteredCode)
 
   const dateStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'dd MMMM yyyy')
   const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
@@ -23,7 +25,12 @@ export function Registration({ batch, onRegistered, onBack }) {
     e.preventDefault()
     setError(null)
     const roll = rollNumber.trim()
+    const mail = email.trim()
     if (!roll) { setError('Please enter your roll number.'); return }
+    if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
 
     setLookingUp(true)
 
@@ -51,30 +58,25 @@ export function Registration({ batch, onRegistered, onBack }) {
       return
     }
     try {
-      // Use RPC to check roster access (no direct table read)
-      const { data: rosterCheck } = await supabase.rpc('check_roster_access', {
-        p_batch_ids: [batch.id], p_roll_number: roll,
+      // Identity check: roll + email must BOTH match the roster row.
+      // On mismatch the server reveals nothing — not even whether the
+      // roll exists (no name-harvesting oracle).
+      const { data: identCheck, error: identErr } = await supabase.rpc('verify_roster_identity', {
+        p_batch_id: batch.id, p_roll_number: roll, p_email: mail,
       })
-      const info = rosterCheck?.[0]
-      const hasRoster = info?.has_roster ?? false
+      if (identErr) throw identErr
+      const ident = identCheck?.[0]
 
-      if (hasRoster) {
-        if (!info.student_in_roster) {
-          setError('You are not registered for this exam. Contact your instructor.')
+      if (ident?.has_roster) {
+        if (!ident.matched) {
+          setError('These details don’t match our records for this exam. Check your roll number and email, or contact your instructor.')
           setLookingUp(false)
           return
         }
 
-        // Fetch only this student's name/email via secure RPC
-        const { data: entry, error: entryErr } = await supabase.rpc('verify_roster_entry', {
-          p_batch_id: batch.id, p_roll_number: roll,
-        })
-        if (entryErr) throw entryErr
-        const student = entry?.[0]
-
-        // Pass student_name from roster to prevent roll-number-only probing
+        // Matched — proceed under the roster identity
         const { data: existing } = await supabase.rpc('get_my_attempt', {
-          p_batch_id: batch.id, p_roll_number: roll, p_student_name: student?.student_name,
+          p_batch_id: batch.id, p_roll_number: roll, p_student_name: ident.student_name,
         })
         if (existing?.length > 0 && existing[0].submitted_at) {
           setError('This roll number has already completed this exam.')
@@ -82,11 +84,10 @@ export function Registration({ batch, onRegistered, onBack }) {
           return
         }
 
-        setRosterEntry(student)
         setPhase('ready')
-        onRegistered({ rollNumber: roll, studentName: student?.student_name, email: student?.email, accessCode: accessCode.trim() || null })
+        onRegistered({ rollNumber: roll, studentName: ident.student_name, email: ident.email, accessCode: accessCode.trim() || null })
       } else {
-        setRosterEntry(false)
+        // No roster on this batch — collect the name (email already captured)
         setPhase('name')
       }
     } catch (err) {
@@ -114,7 +115,7 @@ export function Registration({ batch, onRegistered, onBack }) {
         setSubmitting(false)
         return
       }
-      onRegistered({ rollNumber: roll, studentName: name, email: null, accessCode: accessCode.trim() || null })
+      onRegistered({ rollNumber: roll, studentName: name, email: email.trim() || null, accessCode: accessCode.trim() || null })
     } catch (err) {
       setError(formatDbError(err, 'Could not verify your details. Please try again.'))
     } finally {
@@ -151,10 +152,10 @@ export function Registration({ batch, onRegistered, onBack }) {
           {phase === 'roll' && (
             <div className="card card-heritage u-slide-up" style={{ padding: '28px 28px 24px' }}>
               <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }}>
-                Verify your roll number
+                Verify your identity
               </h1>
               <p style={{ margin: '0 0 24px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.55 }}>
-                Enter the roll number assigned to you by your institution.
+                Enter the roll number and email your institution registered for you.
               </p>
 
               <form onSubmit={handleRollSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -167,15 +168,27 @@ export function Registration({ batch, onRegistered, onBack }) {
                   />
                 </Field>
 
-                <Field label="Access Code" hint="Enter if provided by your instructor">
+                <Field label="Email" required hint="The one your institution has on record">
                   <input
-                    type="text" value={accessCode}
-                    onChange={e => setAccessCode(e.target.value.toUpperCase())}
-                    placeholder="4–6 character code (optional)"
+                    type="email" value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required placeholder="you@example.com"
+                    autoComplete="email"
                     className="form-input"
-                    style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.08em', fontSize: 16 }}
                   />
                 </Field>
+
+                {!codeFromGate && (
+                  <Field label="Exam Code" hint="The code shared by your institution">
+                    <input
+                      type="text" value={accessCode}
+                      onChange={e => setAccessCode(e.target.value.toUpperCase())}
+                      placeholder="6-character code"
+                      className="form-input"
+                      style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.08em', fontSize: 16 }}
+                    />
+                  </Field>
+                )}
 
                 {error && <ErrorBanner>{error}</ErrorBanner>}
 
