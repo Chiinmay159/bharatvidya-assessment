@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { format } from 'date-fns'
@@ -19,9 +19,26 @@ export function BatchForm({ batch, onSaved, onCancel }) {
     show_results:          batch?.show_results ?? true,
     pass_percentage:       batch?.pass_percentage ?? '',
     max_attempts:          batch?.max_attempts ?? 1,
+    organization_id:       batch?.organization_id ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState(null)
+  const [orgs, setOrgs] = useState([])
+
+  // Load organisations for the institution selector (multi-org)
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      if (!cancelled && data) {
+        setOrgs(data)
+        // Default new batches to the first org when none chosen
+        if (!batch && data.length > 0) {
+          setForm(p => p.organization_id ? p : { ...p, organization_id: data[0].id })
+        }
+      }
+    })
+    return () => { cancelled = true }
+  }, [batch])
 
   function set(field, value) { setForm(p => ({ ...p, [field]: value })) }
 
@@ -70,6 +87,7 @@ export function BatchForm({ batch, onSaved, onCancel }) {
       show_results: form.show_results,
       pass_percentage: passPct,
       max_attempts: maxAtt,
+      organization_id: form.organization_id || null,
     }
     const { error: err } = isEditing
       ? await supabase.from('batches').update(payload).eq('id', batch.id)
@@ -106,6 +124,19 @@ export function BatchForm({ batch, onSaved, onCancel }) {
             placeholder="e.g. Batch A – Morning Session"
             style={{ ...inputStyle, ...(locked && lockedStyle) }} />
         </Field>
+
+        {orgs.length > 1 && (
+          <Field label="Institution" hint="Org-scoped admins only see their institution's batches.">
+            <select
+              value={form.organization_id}
+              onChange={e => set('organization_id', e.target.value)}
+              disabled={locked}
+              style={{ ...inputStyle, ...(locked && lockedStyle) }}
+            >
+              {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </Field>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <Field label="Date" required hint={locked ? 'Locked while exam is active.' : undefined}>

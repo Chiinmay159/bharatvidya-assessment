@@ -14,6 +14,7 @@ import { BatchAnalytics }   from '../components/admin/BatchAnalytics'
 import { MissionControl }   from '../components/admin/MissionControl'
 import { CertificatesPanel } from '../components/admin/CertificatesPanel'
 import { StudentsView }     from '../components/admin/StudentsView'
+import { TeamView }         from '../components/admin/TeamView'
 
 // Views: 'dashboard' | 'batches' | 'create-batch' | 'edit-batch' | 'bulk-create'
 //        'questions' | 'roster' | 'results' | 'activity-log'
@@ -126,6 +127,7 @@ export function AdminPage() {
     { label: 'All Batches', active: view === 'batches',    onClick: goToBatches },
     { label: 'Question Bank', active: view === 'question-bank', onClick: () => setView('question-bank') },
     { label: 'Students', active: view === 'students', onClick: () => setView('students') },
+    { label: 'Team', active: view === 'team', onClick: () => setView('team') },
     { label: 'Activity Log', active: view === 'activity-log', onClick: () => setView('activity-log') },
   ]
 
@@ -213,6 +215,10 @@ export function AdminPage() {
 
       {view === 'students' && (
         <StudentsView />
+      )}
+
+      {view === 'team' && (
+        <TeamView userEmail={user.email} />
       )}
 
       {view === 'activity-log' && (
