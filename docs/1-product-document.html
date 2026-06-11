@@ -67,7 +67,8 @@
   <ul>
     <li>Item analysis per exam: difficulty index, discrimination (upper-vs-lower 27%), distractor distribution, average time.</li>
     <li>Anomaly detection: improbably fast finishers, shared wrong-answer patterns, elevated integrity signals.</li>
-    <li>Cross-exam bank-item performance that compounds as questions are reused.</li>
+    <li>Cross-exam bank-item performance that compounds as questions are reused, surfaced in a dedicated Bank Performance view.</li>
+    <li>Programme-level Insights dashboard: score trends, submission volumes, pass rates, and hardest-topic ranking across all of an institution's exams.</li>
   </ul>
 
   <h3>Modular exam series</h3>
@@ -80,9 +81,9 @@
   <h3>Operations &amp; credentials</h3>
   <ul>
     <li>Live exam-day mission control: per-student state (in-exam / disconnected / submitted), answer counts, integrity flags, and per-student time extensions.</li>
-    <li>Certificates with a verification code and QR resolving to a public verification page.</li>
-    <li>One-click post-event report pack (results, item analysis, anomalies, certificates) as an Excel workbook.</li>
-    <li>Multi-institution tenancy with role-based admin: owner, examiner, invigilator, viewer.</li>
+    <li>Certificates with a verification code and QR resolving to a public verification page; revocable, with the public page reflecting revoked status.</li>
+    <li>Post-event reporting: a one-click Excel report pack (results, item analysis, anomalies, certificates) and a formatted printable/PDF exam report.</li>
+    <li>Multi-institution tenancy with role-based admin (owner, examiner, invigilator, viewer), enforced server-side and reflected in a role-aware UI. Admins are provisioned in-app (Google sign-in, or owner-assigned passwords for institutions not on Google).</li>
   </ul>
 
   <h2>3. Architecture</h2>
@@ -92,7 +93,7 @@
     <tr><td>Frontend</td><td>React 19 + Vite single-page app; React Router; code-split admin bundle. Hosted on Vercel, custom domain exams.matramedia.co.in.</td></tr>
     <tr><td>Backend</td><td>Supabase (managed Postgres). Data accessed via PostgREST using the public anonymous key; all writes and sensitive reads go through SECURITY DEFINER RPCs.</td></tr>
     <tr><td>Authorization</td><td>Row-Level Security on every table. Student actions authorised by roster identity + rotating session token; admin actions by a roles table, org-scoped.</td></tr>
-    <tr><td>Admin auth</td><td>Google OAuth via Supabase Auth; admin privilege resolved from an <code>admin_users</code> table (email → role + organisation).</td></tr>
+    <tr><td>Admin auth</td><td>Google OAuth or email + password via Supabase Auth; admin privilege resolved from an <code>admin_users</code> table (email → role + organisation). Password accounts are provisioned by an owner-gated edge function holding the service key server-side.</td></tr>
     <tr><td>Scale design</td><td>Encrypted question paper pre-fetched during the waiting room; only a small decryption key is fetched at exam start, eliminating the start-time request spike. Heartbeats and polls are jittered.</td></tr>
     <tr><td>Monitoring</td><td>Sentry (frontend + edge), activated by environment variable. CI on GitHub Actions (lint, typecheck, tests, build) gating every deploy.</td></tr>
   </table>
@@ -120,10 +121,13 @@
     <li><strong>Server-authoritative timing.</strong> The exam deadline (including per-student extensions) is enforced in the database; answers cannot be saved past time via direct API calls.</li>
     <li><strong>Response integrity.</strong> A submitted answer must belong to the student's own exam paper; scores cannot be inflated by injecting foreign questions.</li>
     <li><strong>Tenant isolation.</strong> Every admin table policy and RPC is organisation-scoped — an institution's admins can see and act on only their own institution's exams, students, question bank, and audit trail.</li>
+    <li><strong>Role enforcement.</strong> The admin role tier is enforced server-side, not just in the UI: viewers are read-only, invigilators monitor and grant time extensions only, and only examiners/owners modify exam content or data.</li>
     <li><strong>Session control.</strong> One active session per student via rotating tokens; concurrent windows are locked out.</li>
+    <li><strong>Rate limiting.</strong> Failed code lookups and identity probes are throttled per client IP — counting only failures, so a shared-campus IP is never affected while brute-force enumeration is cut off.</li>
     <li><strong>Auditability.</strong> Destructive and sensitive admin actions are recorded in an append-only audit log.</li>
-    <li><strong>Secrets.</strong> No secret keys in the client; admin access is OAuth-gated; MFA available via Supabase Auth.</li>
+    <li><strong>Secrets.</strong> No secret keys in the client; the service key lives only in the edge runtime; admin access is OAuth- or password-gated with the admin roster as the boundary; MFA available via Supabase Auth.</li>
   </ul>
+  <p style="font-size:13px;color:var(--ink-3)">Independently penetration-tested against production (June 2026): 24 adversarial attacks as an anonymous key-holder were all refused, and a fully authenticated student decrypting the live exam paper obtains no answer key.</p>
 
   <h2>6. Scale &amp; reliability</h2>
   <ul>
@@ -134,7 +138,7 @@
   </ul>
 
   <h2>7. Status</h2>
-  <p>In production. One tenant live (BharatVidya). Deliberately out of scope at present: payments, student-facing communication (handled by partner institutions), and third-party proctoring. Documented follow-ups: gateway-level rate limiting on the code lookup, and optional internationalised UI strings.</p>
+  <p>In production and penetration-tested. One tenant live (BharatVidya); multi-tenant onboarding is self-serve. Deliberately out of scope at present: payments, student-facing communication (handled by partner institutions), and third-party proctoring. Optional future work: internationalised UI strings (EN/HI/MR), a distinct series-level certificate, and admin MFA enforcement before marquee high-stakes events.</p>
 </div>
 </body>
 </html>
