@@ -1,7 +1,7 @@
 import { CheckIcon, XIcon, WarningIcon, RetryIcon, ClipboardIcon } from './resultIcons'
 import { SeriesStanding } from './SeriesStanding'
 
-export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }) {
+export function ResultScreen({ result, batch, rollNumber, studentName, email, onRetry }) {
   const {
     score, total, percentage, alreadySubmitted,
     showResults = true, passPercentage, canRetry,
@@ -23,7 +23,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
           <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 13, lineHeight: 1.65 }}>
             Results will be shared by your instructor.
           </p>
-          <StudentFooter rollNumber={rollNumber} studentName={studentName} batch={batch} />
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} email={email} batch={batch} />
         </div>
       </div>
     )
@@ -42,7 +42,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
           </p>
           <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
           <RetryButton onRetry={onRetry} />
-          <StudentFooter rollNumber={rollNumber} studentName={studentName} batch={batch} />
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} email={email} batch={batch} />
         </div>
       </div>
     )
@@ -85,7 +85,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
               Attempt {attemptNumber} of {maxAttempts}
             </p>
           )}
-          <StudentFooter rollNumber={rollNumber} studentName={studentName} batch={batch} />
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} email={email} batch={batch} />
           <CloseMessage />
         </div>
       </div>
@@ -105,7 +105,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
           </p>
           <RetryInfo attemptNumber={attemptNumber} maxAttempts={maxAttempts} />
           <RetryButton onRetry={onRetry} />
-          <StudentFooter rollNumber={rollNumber} studentName={studentName} batch={batch} />
+          <StudentFooter rollNumber={rollNumber} studentName={studentName} email={email} batch={batch} />
         </div>
       </div>
     )
@@ -197,7 +197,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
         )}
 
         {/* Student identity */}
-        <StudentFooter rollNumber={rollNumber} studentName={studentName} batch={batch} />
+        <StudentFooter rollNumber={rollNumber} studentName={studentName} email={email} batch={batch} />
 
         {!canRetry && <CloseMessage />}
       </div>
@@ -240,12 +240,12 @@ function RetryButton({ onRetry }) {
   )
 }
 
-function StudentFooter({ rollNumber, studentName, batch }) {
+function StudentFooter({ rollNumber, studentName, email, batch }) {
   return (
     <>
       {/* Series running total — renders only when this exam is part of a series */}
       {batch?.series_module_id && (
-        <SeriesStanding batch={batch} rollNumber={rollNumber} studentName={studentName} />
+        <SeriesStanding batch={batch} rollNumber={rollNumber} email={email} />
       )}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 16, display: 'flex', justifyContent: 'center', gap: 16, fontSize: 13, color: 'var(--text-2)', flexWrap: 'wrap' }}>
         <span>Roll No <strong style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{rollNumber}</strong></span>

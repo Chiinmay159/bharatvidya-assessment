@@ -85,6 +85,19 @@ export function MissionControl({ batch, onBack }) {
         </span>
       </div>
 
+      {/* Exam code — front and centre for invigilators to read out */}
+      {batch.access_code && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'var(--accent-lt)', border: '1px solid var(--accent-md)', borderRadius: 'var(--radius-sm)', padding: '8px 14px', margin: '6px 0 4px' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent-deep)' }}>Exam code</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, letterSpacing: '.14em', color: 'var(--text-1)' }}>{batch.access_code}</span>
+          <button
+            onClick={() => navigator.clipboard?.writeText(batch.access_code)}
+            className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 11 }}
+            aria-label="Copy exam code"
+          >Copy</button>
+        </div>
+      )}
+
       {error && (
         <div role="alert" style={{ background: 'var(--error-lt)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--error)', fontSize: 13, margin: '10px 0' }}>
           {error}

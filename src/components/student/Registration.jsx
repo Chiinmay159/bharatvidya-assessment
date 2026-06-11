@@ -76,7 +76,7 @@ export function Registration({ batch, onRegistered, onBack }) {
 
         // Matched — proceed under the roster identity
         const { data: existing } = await supabase.rpc('get_my_attempt', {
-          p_batch_id: batch.id, p_roll_number: roll, p_student_name: ident.student_name,
+          p_batch_id: batch.id, p_roll_number: roll, p_email: mail,
         })
         if (existing?.length > 0 && existing[0].submitted_at) {
           setError('This roll number has already completed this exam.')
@@ -102,13 +102,14 @@ export function Registration({ batch, onRegistered, onBack }) {
     setError(null)
     const roll = rollNumber.trim()
     const name = studentName.trim()
+    const mail = email.trim()
     if (!name) { setError('Please enter your full name.'); return }
 
     setSubmitting(true)
     try {
-      // Pass student_name to scope the lookup to this student
+      // Scope the lookup to this student's verified email
       const { data: existing } = await supabase.rpc('get_my_attempt', {
-        p_batch_id: batch.id, p_roll_number: roll, p_student_name: name,
+        p_batch_id: batch.id, p_roll_number: roll, p_email: mail,
       })
       if (existing?.length > 0 && existing[0].submitted_at) {
         setError('This roll number has already completed this exam.')

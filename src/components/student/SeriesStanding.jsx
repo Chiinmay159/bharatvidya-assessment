@@ -9,27 +9,28 @@ import { supabase } from '../../lib/supabase'
  * 'pending' with no marks, and the running total excludes them.
  * Fails silently — this panel must never disrupt the result screen.
  */
-export function SeriesStanding({ batch, rollNumber, studentName }) {
+export function SeriesStanding({ batch, rollNumber, email }) {
   const [rows, setRows] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
+        if (!email) return // standing is keyed on roll + email
         const { data: ser } = await supabase.rpc('get_batch_series', { p_batch_id: batch.id })
         const series = Array.isArray(ser) ? ser[0] : ser
         if (!series?.series_id || cancelled) return
         const { data } = await supabase.rpc('get_my_series_standing', {
           p_series_id:    series.series_id,
           p_roll_number:  rollNumber,
-          p_student_name: studentName,
+          p_email:        email,
         })
         if (!cancelled && Array.isArray(data) && data.length > 0) setRows(data)
       } catch { /* never disrupt the result screen */ }
     }
     const t = setTimeout(load, 0)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [batch.id, rollNumber, studentName])
+  }, [batch.id, rollNumber, email])
 
   if (!rows) return null
 

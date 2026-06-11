@@ -286,7 +286,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
                     border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border-md)'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 13, fontWeight: 700,
-                    color: isSelected ? '#fff' : 'var(--text-2)',
+                    color: isSelected ? 'var(--text-1)' : 'var(--text-2)',
                     transition: 'all var(--t-fast) var(--ease-smooth)',
                   }}>
                     {option.label}

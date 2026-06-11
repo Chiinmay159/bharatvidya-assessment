@@ -41,12 +41,12 @@ export function VerifyPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', justifyContent: 'center', padding: '48px 20px' }}>
       <div style={{ width: '100%', maxWidth: 480 }}>
         <div className="card" style={{ padding: '32px 28px', textAlign: 'center' }}>
-          <img src="/logo.png" alt="BharatVidya" style={{ width: 48, height: 48, borderRadius: '50%', margin: '0 auto 14px' }} />
+          <img src="/logo.png" alt="Matra" style={{ width: 48, height: 48, borderRadius: '50%', margin: '0 auto 14px' }} />
           <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>
             Certificate Verification
           </h1>
           <p style={{ margin: '0 0 22px', fontSize: 13, color: 'var(--text-3)' }}>
-            BharatVidya Exams · Enter the code printed on the certificate
+            Matra Assessment Platform · Enter the code printed on the certificate
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
@@ -54,6 +54,7 @@ export function VerifyPage() {
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               placeholder="BV-XXXX-XXXX-XXXX"
+              autoComplete="off"
               aria-label="Certificate code"
               style={{
                 flex: 1, padding: '11px 14px', fontSize: 14, fontFamily: 'var(--font-mono)',
@@ -89,7 +90,7 @@ export function VerifyPage() {
           )}
         </div>
         <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-3)', marginTop: 14 }}>
-          Certificates are issued and verified by BharatVidya. Questions? Contact the issuing institution.
+          Certificates are issued and verified by the institution via Matra. Questions? Contact the issuing institution.
         </p>
       </div>
     </div>

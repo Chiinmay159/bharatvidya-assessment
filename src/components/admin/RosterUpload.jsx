@@ -205,7 +205,7 @@ const backBtn = {
 const btnPrimary = {
   all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
   padding: '8px 16px', borderRadius: 'var(--radius-sm)',
-  background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600,
+  background: 'var(--accent)', color: 'var(--text-1)', fontSize: 13, fontWeight: 600,
 }
 const btnSecondary = {
   all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center',

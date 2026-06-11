@@ -210,5 +210,5 @@ function Alert({ type, text }) {
 
 const backBtn = { all: 'unset', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 20 }
 const codeStyle = { fontFamily: 'var(--font-mono)', fontSize: 11, background: 'var(--surface-2)', padding: '1px 5px', borderRadius: 4, border: '1px solid var(--border)' }
-const btnPrimary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '9px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600 }
+const btnPrimary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '9px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--text-1)', fontSize: 13, fontWeight: 600 }
 const btnSecondary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '9px 16px', borderRadius: 8, border: '1px solid var(--border-md)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }

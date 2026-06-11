@@ -374,7 +374,7 @@ const btnPrimary = {
   all: 'unset', cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center',
   padding: '9px 18px', borderRadius: 'var(--radius-md)',
-  background: 'var(--accent)', color: '#fff',
+  background: 'var(--accent)', color: 'var(--text-1)',
   fontSize: 14, fontWeight: 600,
 }
 const btnSecondary = {

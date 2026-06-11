@@ -85,7 +85,7 @@ export class ErrorBoundary extends Component {
                 padding: '11px 24px',
                 borderRadius: 'var(--radius-sm)',
                 background: 'var(--accent)',
-                color: '#fff',
+                color: 'var(--text-1)',
                 fontSize: 15,
                 fontWeight: 600,
                 border: 'none',

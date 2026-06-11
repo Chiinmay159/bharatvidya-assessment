@@ -125,7 +125,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       const { data: existing } = await supabase.rpc('get_my_attempt', {
         p_batch_id:     batchId,
         p_roll_number:  rollNumber,
-        p_student_name: studentName,
+        p_email:        email,
       })
 
       let currentAttemptId: string
@@ -226,7 +226,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       const { data: token, error: sessionErr } = await supabase.rpc('claim_session', {
         p_attempt_id:   currentAttemptId,
         p_roll_number:  rollNumber,
-        p_student_name: studentName,
+        p_email:        email,
       })
       if (sessionErr) throw sessionErr
       sessionTokenRef.current = token as string
@@ -261,7 +261,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id:   currentAttemptId,
           p_roll_number:  rollNumber,
-          p_student_name: studentName,
+          p_email:        email,
         })
         if (prevResponses?.length > 0) {
           const map: Record<string, string> = {}

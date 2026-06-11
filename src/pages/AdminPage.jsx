@@ -95,7 +95,7 @@ export function AdminPage() {
       <div style={{ minHeight: '100vh', background: 'var(--gradient-hero)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div className="card u-slide-up" style={{ width: '100%', maxWidth: 360, padding: '40px 36px', textAlign: 'center', boxShadow: 'var(--shadow-xl)', borderTop: '3px solid var(--accent)' }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 20px', border: '3px solid var(--accent-md)', boxShadow: 'var(--shadow-md)' }}>
-            <img src="/logo.png" alt="BharatVidya" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/logo.png" alt="Matra" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <h1 style={{ margin: '0 0 4px', fontSize: 21, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-.35px' }}>Admin Portal</h1>
           <p style={{ margin: '0 0 28px', fontSize: 13, color: 'var(--text-3)' }}>Matra Assessment Platform · Restricted access</p>

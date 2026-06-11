@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { BatchSelect }    from '../components/student/BatchSelect'
 import { Registration }   from '../components/student/Registration'
-import { ConfirmIdentity } from '../components/student/ConfirmIdentity'
 import { WaitingRoom }    from '../components/student/WaitingRoom'
 import { Instructions }   from '../components/student/Instructions'
 import { ExamScreen }     from '../components/student/ExamScreen'
@@ -37,14 +36,11 @@ export function StudentPage() {
     setStep('register')
   }
 
-  // Called by Registration with { rollNumber, studentName, email }
+  // Called by Registration with { rollNumber, studentName, email }.
+  // Identity is already verified server-side (roll+email against roster),
+  // so we route straight to the exam — no redundant confirm step.
   function handleRegistered(studentData) {
     setStudent(studentData)
-    setStep('confirm')
-  }
-
-  // Called by ConfirmIdentity "Confirm" button
-  function handleConfirmed() {
     if (selectedBatch.status === 'active') {
       setStep('instructions')
     } else {
@@ -89,17 +85,6 @@ export function StudentPage() {
         batch={selectedBatch}
         onRegistered={handleRegistered}
         onBack={() => setStep('select')}
-      />
-    )
-  }
-
-  if (step === 'confirm') {
-    return (
-      <ConfirmIdentity
-        batch={selectedBatch}
-        student={student}
-        onConfirm={handleConfirmed}
-        onBack={() => setStep('register')}
       />
     )
   }
@@ -149,6 +134,7 @@ export function StudentPage() {
         batch={selectedBatch}
         rollNumber={student?.rollNumber}
         studentName={student?.studentName}
+        email={student?.email}
         onRetry={handleRetry}
       />
     )
