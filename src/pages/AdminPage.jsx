@@ -29,6 +29,9 @@ export function AdminPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [orgLabel,      setOrgLabel]      = useState(null)
   const [role,          setRole]          = useState(null) // owner|examiner|invigilator|viewer
+  const [pwEmail,       setPwEmail]       = useState('')
+  const [pwPass,        setPwPass]        = useState('')
+  const [signingIn,     setSigningIn]     = useState(false)
 
   // Tenant-aware header + role gating for the UI.
   useEffect(() => {
@@ -92,6 +95,16 @@ export function AdminPage() {
     if (error) setAuthError(error.message)
   }
 
+  async function handlePasswordSignIn(e) {
+    e.preventDefault()
+    setAuthError(null)
+    setSigningIn(true)
+    const { error } = await supabase.auth.signInWithPassword({ email: pwEmail.trim(), password: pwPass })
+    if (error) setAuthError('Incorrect email or password.')
+    setSigningIn(false)
+    // onAuthStateChange → vetUser handles the rest
+  }
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -132,8 +145,32 @@ export function AdminPage() {
             Sign in with Google
           </button>
 
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+
+          {/* Email + password (for institutional accounts not on Google) */}
+          <form onSubmit={handlePasswordSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+            <input
+              type="email" value={pwEmail} onChange={e => setPwEmail(e.target.value)}
+              placeholder="Email" autoComplete="username" required
+              style={pwInput}
+            />
+            <input
+              type="password" value={pwPass} onChange={e => setPwPass(e.target.value)}
+              placeholder="Password" autoComplete="current-password" required
+              style={pwInput}
+            />
+            <button type="submit" disabled={signingIn || !pwEmail.trim() || !pwPass} className="btn btn-primary btn-block" style={{ padding: '11px 16px' }}>
+              {signingIn ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+
           <p style={{ margin: '18px 0 0', fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
-            Access limited to authorized admin accounts.
+            Access limited to authorized admin accounts. Password accounts are created by your administrator.
           </p>
         </div>
       </div>
@@ -297,3 +334,8 @@ const bulkBtn = {
   padding: '4px 10px', border: '1px solid var(--border-md)', borderRadius: 6,
 }
 const pageHeading = { margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }
+const pwInput = {
+  width: '100%', boxSizing: 'border-box', padding: '11px 14px', fontSize: 14,
+  border: '1.5px solid var(--border-md)', borderRadius: 'var(--radius-sm)',
+  background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit',
+}
