@@ -16,6 +16,7 @@ import { CertificatesPanel } from '../components/admin/CertificatesPanel'
 import { StudentsView }     from '../components/admin/StudentsView'
 import { TeamView }         from '../components/admin/TeamView'
 import { SeriesView }       from '../components/admin/SeriesView'
+import { InsightsView }     from '../components/admin/InsightsView'
 
 // Views: 'dashboard' | 'batches' | 'create-batch' | 'edit-batch' | 'bulk-create'
 //        'questions' | 'roster' | 'results' | 'activity-log'
@@ -148,6 +149,7 @@ export function AdminPage() {
     { label: 'Series', active: view === 'series', onClick: () => setView('series') },
     { label: 'Students', active: view === 'students', onClick: () => setView('students') },
     { label: 'Team', active: view === 'team', onClick: () => setView('team') },
+    { label: 'Insights', active: view === 'insights', onClick: () => setView('insights') },
     { label: 'Activity Log', active: view === 'activity-log', onClick: () => setView('activity-log') },
   ]
 
@@ -239,6 +241,10 @@ export function AdminPage() {
 
       {view === 'team' && (
         <TeamView userEmail={user.email} />
+      )}
+
+      {view === 'insights' && (
+        <InsightsView />
       )}
 
       {view === 'series' && (

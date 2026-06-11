@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matra Assessment Platform — Product Document</title>
+<style>
+  :root{
+    --ink:#1C1B18; --ink-2:#45433D; --ink-3:#6B685F;
+    --blue:#1B2D4F; --gold:#A8871E; --rule:#E3DCCB; --bg:#FAF8F2; --surface:#fff;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-font-smoothing:antialiased}
+  body{margin:0;background:var(--ink);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .page{background:var(--surface);max-width:210mm;margin:0 auto;padding:22mm 20mm;}
+  h1{font-family:Georgia,"Times New Roman",serif;font-size:30px;line-height:1.15;margin:0 0 4px;letter-spacing:-.4px}
+  h2{font-family:Georgia,serif;font-size:19px;margin:30px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--rule);letter-spacing:-.2px}
+  h3{font-size:14px;margin:18px 0 6px;color:var(--blue);text-transform:uppercase;letter-spacing:.05em}
+  p,li{color:var(--ink-2)}
+  .sub{color:var(--ink-3);font-size:13px;margin:0 0 2px}
+  .gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),#C9A227 40%,#E8D48A);margin:0 0 18px;border-radius:2px}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:3px}
+  ul{margin:6px 0;padding-left:20px} li{margin:3px 0}
+  .meta{font-size:12px;color:var(--ink-3);margin-top:4px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;color:var(--gold);border:1px solid var(--rule);border-radius:999px;padding:2px 10px;margin-right:6px}
+  @media print{ body{background:#fff} .page{padding:0;max-width:none} h2{break-after:avoid} }
+  @page{size:A4;margin:18mm}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="gold-rule"></div>
+  <p class="sub">PRODUCT DOCUMENT · MATRA MEDIA</p>
+  <h1>Matra Assessment Platform</h1>
+  <p class="meta">Secure online examinations with verifiable results. Live at exams.matramedia.co.in · Document revised June 2026</p>
+
+  <h2>1. Overview</h2>
+  <p>Matra is a multi-tenant platform for conducting timed, proctored online examinations at scale. It is operated by Matra Media and currently powers BharatVidya's examinations in Indian Knowledge Systems; the architecture supports additional partner institutions, each isolated from the others. The platform handles the full examination lifecycle: authoring a reusable question bank, composing papers, scheduling, identity-verified student entry, live exam-day monitoring, server-authoritative scoring, psychometric analysis, and publicly verifiable certificates.</p>
+  <p>It is designed for real Indian exam conditions — large simultaneous cohorts, mid-range Android devices, and unreliable connectivity — and has been load-validated for 2,000+ concurrent students.</p>
+
+  <h2>2. Capabilities</h2>
+
+  <h3>Examination runtime</h3>
+  <ul>
+    <li>Server-synced countdown timer, immune to client clock tampering; auto-submit at deadline.</li>
+    <li>Per-student deterministic shuffling of question order and answer options.</li>
+    <li>Continuous answer saving with an offline queue that survives connection drops and resumes on reconnect.</li>
+    <li>Single active session per student, enforced by rotating session tokens.</li>
+    <li>Integrity telemetry: tab-switch logging, fullscreen-exit logging, copy-attempt blocking, per-question timing.</li>
+    <li>Configurable retakes, pass thresholds, and result visibility per exam.</li>
+  </ul>
+
+  <h3>Question bank &amp; paper composition</h3>
+  <ul>
+    <li>Reusable question bank with topic, sub-topic, difficulty, Bloom's level, language, and tags.</li>
+    <li>Author → review → approve workflow with a four-eyes rule (a question cannot be approved by its author; edits to an approved question revert it to draft).</li>
+    <li>Per-institution private banks plus an optional shared master bank.</li>
+    <li>Blueprint-based composition (e.g. "10 easy Vedanta, 5 hard Nyaya") that copies approved questions into a frozen exam paper, rotating least-recently-used items.</li>
+    <li>CSV upload as an alternative to bank composition.</li>
+  </ul>
+
+  <h3>Assessment science</h3>
+  <ul>
+    <li>Item analysis per exam: difficulty index, discrimination (upper-vs-lower 27%), distractor distribution, average time.</li>
+    <li>Anomaly detection: improbably fast finishers, shared wrong-answer patterns, elevated integrity signals.</li>
+    <li>Cross-exam bank-item performance that compounds as questions are reused.</li>
+  </ul>
+
+  <h3>Modular exam series</h3>
+  <ul>
+    <li>A 100-mark assessment delivered as weighted modules across a term or year (e.g. 20-20-20-40).</li>
+    <li>Aggregate decides pass/fail while per-module failures remain on record; absence counts zero until a make-up sitting.</li>
+    <li>One series roster synced to every module; students see a live running total (hidden-result modules excluded).</li>
+  </ul>
+
+  <h3>Operations &amp; credentials</h3>
+  <ul>
+    <li>Live exam-day mission control: per-student state (in-exam / disconnected / submitted), answer counts, integrity flags, and per-student time extensions.</li>
+    <li>Certificates with a verification code and QR resolving to a public verification page.</li>
+    <li>One-click post-event report pack (results, item analysis, anomalies, certificates) as an Excel workbook.</li>
+    <li>Multi-institution tenancy with role-based admin: owner, examiner, invigilator, viewer.</li>
+  </ul>
+
+  <h2>3. Architecture</h2>
+  <p>A single-page web application talking directly to a managed Postgres backend; there is no custom application server. All business logic that must be trusted lives in the database as security-defined functions, so the browser cannot bypass it.</p>
+  <table>
+    <tr><th>Layer</th><th>Implementation</th></tr>
+    <tr><td>Frontend</td><td>React 19 + Vite single-page app; React Router; code-split admin bundle. Hosted on Vercel, custom domain exams.matramedia.co.in.</td></tr>
+    <tr><td>Backend</td><td>Supabase (managed Postgres). Data accessed via PostgREST using the public anonymous key; all writes and sensitive reads go through SECURITY DEFINER RPCs.</td></tr>
+    <tr><td>Authorization</td><td>Row-Level Security on every table. Student actions authorised by roster identity + rotating session token; admin actions by a roles table, org-scoped.</td></tr>
+    <tr><td>Admin auth</td><td>Google OAuth via Supabase Auth; admin privilege resolved from an <code>admin_users</code> table (email → role + organisation).</td></tr>
+    <tr><td>Scale design</td><td>Encrypted question paper pre-fetched during the waiting room; only a small decryption key is fetched at exam start, eliminating the start-time request spike. Heartbeats and polls are jittered.</td></tr>
+    <tr><td>Monitoring</td><td>Sentry (frontend + edge), activated by environment variable. CI on GitHub Actions (lint, typecheck, tests, build) gating every deploy.</td></tr>
+  </table>
+
+  <h3>Data model (core tables)</h3>
+  <p><code>organizations</code>, <code>admin_users</code>, <code>batches</code> (exams), <code>questions</code> (frozen per-exam paper), <code>bank_questions</code> (reusable, org-scoped), <code>roster</code>, <code>attempts</code>, <code>responses</code>, <code>students</code> (persistent identity), <code>certificates</code>, <code>exam_series</code> / <code>series_modules</code> / <code>series_roster</code>, plus <code>tab_switches</code>, <code>integrity_events</code>, and <code>audit_log</code>.</p>
+
+  <h2>4. Technical stack</h2>
+  <table>
+    <tr><th>Area</th><th>Technology</th></tr>
+    <tr><td>Language</td><td>TypeScript (core libraries &amp; hooks), JavaScript/JSX (components)</td></tr>
+    <tr><td>UI</td><td>React 19, Vite, React Router; heritage design system (√2 type scale; ink-blue, burgundy, gold, ivory palette)</td></tr>
+    <tr><td>Database</td><td>PostgreSQL 17 (Supabase), Row-Level Security, pgcrypto</td></tr>
+    <tr><td>Client libraries</td><td>@supabase/supabase-js, date-fns, papaparse (CSV), qrcode, xlsx (report pack), @sentry/react</td></tr>
+    <tr><td>Testing &amp; CI</td><td>Vitest + Testing Library; Playwright-ready; k6 load-test harness; GitHub Actions</td></tr>
+    <tr><td>Hosting</td><td>Vercel (frontend), Supabase (database + auth)</td></tr>
+  </table>
+
+  <h2>5. Security provisions</h2>
+  <ul>
+    <li><strong>Answer keys never reach the client.</strong> Correct answers are stripped server-side; scoring is computed by database triggers and the submit RPC, never in the browser.</li>
+    <li><strong>Row-Level Security on all 16 tables.</strong> No table is directly readable or writable by the anonymous role beyond its explicitly granted columns.</li>
+    <li><strong>Identity verification.</strong> On rostered exams, entry requires a matching roll number <em>and</em> email, enforced inside <code>create_attempt</code>; a mismatch reveals nothing (no name-harvesting).</li>
+    <li><strong>Exam access.</strong> Exams are unlisted by default and reached via an 8-character exam code; the roster identity is the actual credential.</li>
+    <li><strong>Server-authoritative timing.</strong> The exam deadline (including per-student extensions) is enforced in the database; answers cannot be saved past time via direct API calls.</li>
+    <li><strong>Response integrity.</strong> A submitted answer must belong to the student's own exam paper; scores cannot be inflated by injecting foreign questions.</li>
+    <li><strong>Tenant isolation.</strong> Every admin table policy and RPC is organisation-scoped — an institution's admins can see and act on only their own institution's exams, students, question bank, and audit trail.</li>
+    <li><strong>Session control.</strong> One active session per student via rotating tokens; concurrent windows are locked out.</li>
+    <li><strong>Auditability.</strong> Destructive and sensitive admin actions are recorded in an append-only audit log.</li>
+    <li><strong>Secrets.</strong> No secret keys in the client; admin access is OAuth-gated; MFA available via Supabase Auth.</li>
+  </ul>
+
+  <h2>6. Scale &amp; reliability</h2>
+  <ul>
+    <li>Validated at <strong>2,000 concurrent virtual users</strong> through the full exam lifecycle: 0 errors, p95 response latency ~80ms.</li>
+    <li>Start-time spike engineered away via encrypted-paper pre-fetch and a tiny key broadcast at start.</li>
+    <li>Offline-tolerant: answers queue locally and sync on reconnect; the timer is server-synced and monotonic.</li>
+    <li>A standing k6 load-test harness allows re-validation before any large event.</li>
+  </ul>
+
+  <h2>7. Status</h2>
+  <p>In production. One tenant live (BharatVidya). Deliberately out of scope at present: payments, student-facing communication (handled by partner institutions), and third-party proctoring. Documented follow-ups: gateway-level rate limiting on the code lookup, and optional internationalised UI strings.</p>
+</div>
+</body>
+</html>

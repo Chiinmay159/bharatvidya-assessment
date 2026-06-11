@@ -32,6 +32,9 @@ export function QuestionBank({ userEmail }) {
   const [fSearch, setFSearch] = useState('')
   // Editing
   const [editing, setEditing] = useState(null) // null | 'new' | question row
+  const [view, setView] = useState('bank')      // 'bank' | 'performance'
+  // Lifetime cross-exam performance, keyed by bank_question_id
+  const [perf, setPerf] = useState({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,6 +54,10 @@ export function QuestionBank({ userEmail }) {
 
       const { data: topicRows } = await supabase.from('bank_questions').select('topic')
       setTopics([...new Set((topicRows ?? []).map(r => r.topic))].sort())
+
+      // Cross-exam lifetime performance (compounds as questions are reused)
+      const { data: perfRows } = await supabase.rpc('bank_item_performance')
+      setPerf(Object.fromEntries((perfRows ?? []).map(r => [r.bank_question_id, r])))
     } catch (err) {
       setError(formatDbError(err, 'Failed to load the question bank.'))
     } finally {
@@ -97,10 +104,19 @@ export function QuestionBank({ userEmail }) {
             {counts.in_review ? ` · ${counts.in_review} awaiting review` : ''}
           </p>
         </div>
-        <button onClick={() => setEditing('new')} className="btn btn-primary" style={{ padding: '10px 18px' }}>
-          + New question
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setView(view === 'bank' ? 'performance' : 'bank')} className="btn btn-secondary" style={{ padding: '10px 16px' }}>
+            {view === 'bank' ? 'Bank performance →' : '← Back to bank'}
+          </button>
+          {view === 'bank' && (
+            <button onClick={() => setEditing('new')} className="btn btn-primary" style={{ padding: '10px 18px' }}>
+              + New question
+            </button>
+          )}
+        </div>
       </div>
+
+      {view === 'performance' ? <BankPerformance perf={perf} loading={loading} /> : (<>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -155,6 +171,16 @@ export function QuestionBank({ userEmail }) {
                     <span>by {q.created_by}</span>
                     {q.reviewed_by && <span>· approved by {q.reviewed_by}</span>}
                   </div>
+                  {/* Lifetime cross-exam performance, once the question has been answered */}
+                  {perf[q.id] && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <span title="Across all exams this question has appeared in">
+                        lifetime: <strong>{Number(perf[q.id].difficulty_index).toFixed(2)}</strong> difficulty
+                      </span>
+                      <span>· {perf[q.id].n_responses} responses across {perf[q.id].exams_used} exam{perf[q.id].exams_used !== 1 ? 's' : ''}</span>
+                      {perf[q.id].avg_time_s != null && <span>· {perf[q.id].avg_time_s}s avg</span>}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <button onClick={() => setEditing(q)} className="btn btn-secondary" style={smallBtn}>Edit</button>
@@ -178,9 +204,72 @@ export function QuestionBank({ userEmail }) {
           })}
         </div>
       )}
+      </>)}
     </div>
   )
 }
+
+/* ── Cross-exam bank performance (the compounding asset) ───── */
+function BankPerformance({ perf, loading }) {
+  const rows = Object.values(perf).sort((a, b) => b.n_responses - a.n_responses)
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={26} color="var(--accent)" /></div>
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="card" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
+        No performance data yet. Once questions composed from the bank are answered in live exams,
+        their lifetime statistics appear here and sharpen with every reuse.
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6 }}>
+        Lifetime performance of bank questions across every exam they've appeared in. Difficulty index is the
+        fraction answered correctly (lower = harder). Use it to retire weak items and trust strong ones.
+      </p>
+      <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--border)' }}>
+              <th style={{ ...th, textAlign: 'left' }}>Question</th>
+              <th style={th}>Topic</th>
+              <th style={th}>Difficulty tag</th>
+              <th style={th} title="Fraction answered correctly across all exams">Lifetime difficulty</th>
+              <th style={th}>Exams</th>
+              <th style={th}>Responses</th>
+              <th style={th}>Avg time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => {
+              const di = Number(r.difficulty_index)
+              const flag = di < 0.15 || di > 0.95
+              return (
+                <tr key={r.bank_question_id} style={{ borderBottom: '1px solid var(--border)', background: flag ? 'var(--warn-lt)' : undefined }}>
+                  <td style={{ ...td, textAlign: 'left', maxWidth: 320 }}>{r.question_text.length > 90 ? r.question_text.slice(0, 89) + '…' : r.question_text}</td>
+                  <td style={td}>{r.topic}</td>
+                  <td style={td}>{r.difficulty}</td>
+                  <td style={{ ...td, fontWeight: 700 }}>{di.toFixed(2)}</td>
+                  <td style={td}>{r.exams_used}</td>
+                  <td style={td}>{r.n_responses}</td>
+                  <td style={td}>{r.avg_time_s != null ? `${r.avg_time_s}s` : '—'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--text-3)' }}>
+        Highlighted rows are statistically extreme (too easy &gt; 0.95 or too hard &lt; 0.15) and worth reviewing.
+      </p>
+    </div>
+  )
+}
+
+const th = { padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', textAlign: 'center', whiteSpace: 'nowrap' }
+const td = { padding: '9px 12px', textAlign: 'center', color: 'var(--text-1)', verticalAlign: 'top' }
 
 function Banner({ kind, children }) {
   const isErr = kind === 'error'

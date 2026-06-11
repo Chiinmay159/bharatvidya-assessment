@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matra — Student Guide</title>
+<style>
+  :root{--ink:#1C1B18;--ink-2:#45433D;--ink-3:#6B685F;--blue:#1B2D4F;--gold:#A8871E;--rule:#E3DCCB;--bg:#FAF8F2;--surface:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--ink);font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .page{background:var(--surface);max-width:210mm;margin:0 auto;padding:18mm 18mm}
+  h1{font-family:Georgia,serif;font-size:26px;margin:0 0 2px;letter-spacing:-.4px}
+  h2{font-family:Georgia,serif;font-size:17px;margin:20px 0 8px}
+  .sub{color:var(--ink-3);font-size:13px;margin:0}
+  .gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),#C9A227 40%,#E8D48A);margin:0 0 16px;border-radius:2px}
+  .steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:12px 0}
+  .step{border:1px solid var(--rule);border-radius:6px;border-top:3px solid var(--blue);padding:12px 14px}
+  .step .n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--blue);color:#E8D48A;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:700;font-size:13px;margin-bottom:6px}
+  .step h3{margin:0 0 4px;font-size:14px;color:var(--ink)}
+  .step p{margin:0;font-size:12.5px;color:var(--ink-3)}
+  .need{background:var(--bg);border-radius:6px;padding:12px 16px;margin:10px 0}
+  .need b{color:var(--ink)}
+  ul{padding-left:20px;margin:6px 0} li{margin:3px 0;color:var(--ink-2)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:3px}
+  .calm{border-left:3px solid var(--gold);background:var(--bg);padding:10px 14px;font-size:13px;margin:8px 0}
+  @media print{body{background:#fff}.page{padding:0;max-width:none}}
+  @page{size:A4;margin:16mm}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="gold-rule"></div>
+  <p class="sub">STUDENT GUIDE · MATRA ASSESSMENT PLATFORM</p>
+  <h1>How to take your exam</h1>
+  <p class="sub">Everything is at <b>exams.matramedia.co.in</b></p>
+
+  <div class="need">
+    <b>Before you start, have these three things ready:</b>
+    <ul>
+      <li><b>Your exam code</b> — 8 characters, shared by your college (notice board / admit card / instructor).</li>
+      <li><b>Your roll number</b> — as registered by your college.</li>
+      <li><b>Your email</b> — the one your college has on record for you.</li>
+    </ul>
+  </div>
+
+  <h2>Three simple steps</h2>
+  <div class="steps">
+    <div class="step"><span class="n">1</span><h3>Check your device</h3><p>A day before, on the device you'll use, open <code>/check</code>. It tests your connection, browser, and that the text displays correctly — 30 seconds.</p></div>
+    <div class="step"><span class="n">2</span><h3>Find your exam</h3><p>On exam day, go to <code>/exam</code>, enter your exam code, then your roll number and email. Your exam appears.</p></div>
+    <div class="step"><span class="n">3</span><h3>Take it</h3><p>Read the instructions, then begin. The exam starts and ends automatically at the scheduled time.</p></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2>During the exam</h2>
+      <ul>
+        <li>Questions appear one at a time; you cannot go back.</li>
+        <li>The timer is shown at the top — the exam submits automatically when it ends.</li>
+        <li>Stay in fullscreen and don't switch tabs — both are logged for your invigilator.</li>
+        <li>Your answers save as you go.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>If your internet drops</h2>
+      <ul>
+        <li>Don't panic — your saved answers are safe.</li>
+        <li>A banner tells you answers are waiting to sync; they send automatically when you reconnect.</li>
+        <li>If the page closes, just reopen the exam link and continue from where you were.</li>
+        <li>Only one device/tab at a time — close any extra copies.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="calm"><b>Wrong code or "details don't match"?</b> Re-check the exam code, and that your roll number and email are exactly as your college registered them. If it still won't work, contact your instructor.</div>
+
+  <h2>After the exam</h2>
+  <ul>
+    <li>You'll see a confirmation, and your score if your college has enabled results.</li>
+    <li>If your exam is part of a multi-module series, you'll see your running total so far.</li>
+    <li>Certificates (if issued) carry a code and QR — anyone can confirm a certificate is genuine at <code>/verify</code>.</li>
+  </ul>
+
+  <p class="sub" style="margin-top:18px">Tip: use a charged device on a stable connection, in a quiet place, and arrive a few minutes early.</p>
+</div>
+</body>
+</html>

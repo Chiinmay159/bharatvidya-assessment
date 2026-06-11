@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matra — Owner / Operations Manual</title>
+<style>
+  :root{--ink:#1C1B18;--ink-2:#45433D;--ink-3:#6B685F;--blue:#1B2D4F;--gold:#A8871E;--rule:#E3DCCB;--bg:#FAF8F2;--surface:#fff;--err:#B91C1C}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--ink);font:14.5px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .page{background:var(--surface);max-width:210mm;margin:0 auto;padding:22mm 20mm}
+  h1{font-family:Georgia,serif;font-size:28px;margin:0 0 4px;letter-spacing:-.4px}
+  h2{font-family:Georgia,serif;font-size:19px;margin:28px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+  h3{font-size:13.5px;margin:16px 0 4px;color:var(--blue);text-transform:uppercase;letter-spacing:.04em}
+  p,li{color:var(--ink-2)}
+  .sub{color:var(--ink-3);font-size:13px;margin:0 0 2px}
+  .gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),#C9A227 40%,#E8D48A);margin:0 0 18px;border-radius:2px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:3px}
+  pre{background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  ol{padding-left:22px} ol>li{margin:6px 0} ul{padding-left:20px} ul>li{margin:3px 0}
+  .note{background:var(--bg);border-left:3px solid var(--gold);padding:10px 14px;margin:12px 0;font-size:13.5px}
+  .warn{background:#FEF2F2;border-left:3px solid var(--err);padding:10px 14px;margin:12px 0;font-size:13.5px}
+  kbd{font-size:12px;background:var(--bg);border:1px solid var(--rule);border-radius:3px;padding:0 5px}
+  @media print{body{background:#fff}.page{padding:0;max-width:none}h2{break-after:avoid}pre{white-space:pre-wrap}}
+  @page{size:A4;margin:18mm}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="gold-rule"></div>
+  <p class="sub">OWNER / OPERATIONS MANUAL — CONFIDENTIAL</p>
+  <h1>Matra Platform — Operator's Manual</h1>
+  <p class="sub">For Chinmay Bhandari · the single source of truth for running, deploying, and extending the platform · June 2026</p>
+
+  <h2>1. The whole system in one picture</h2>
+  <ul>
+    <li><strong>Frontend:</strong> React/Vite SPA, repo <code>Chiinmay159/bharatvidya-assessment</code>, auto-deployed by Vercel on push to <code>main</code>.</li>
+    <li><strong>Domain:</strong> <code>exams.matramedia.co.in</code> (CNAME → Vercel). Old <code>bharatvidya-assessment.vercel.app</code> 307-redirects here.</li>
+    <li><strong>Database:</strong> Supabase project <strong>Bharatvidya</strong> — ref <code>msbpnpjjigheoplfnuly</code> (ap-northeast-1). This is production.</li>
+    <li><strong>Staging:</strong> Supabase project <strong>bharatvidya-staging</strong> — ref <code>vtbxmnbsddkcxzqixlrp</code> (ap-south-1). Kept paused; used for load tests and risky migrations.</li>
+    <li><strong>Auth:</strong> Google OAuth via Supabase. Admin privilege is data, not config — a row in <code>admin_users</code>.</li>
+    <li><strong>Monitoring:</strong> Sentry (set <code>VITE_SENTRY_DSN</code> to enable). CI: GitHub Actions runs lint + typecheck + tests + build on every push.</li>
+  </ul>
+  <div class="note">There is no application server to manage. All trusted logic lives in Postgres functions. To change behaviour you change either the React app (deploy via git) or the database (a migration).</div>
+
+  <h2>2. Environment variables</h2>
+  <table>
+    <tr><th>Variable</th><th>Where</th><th>Value</th></tr>
+    <tr><td><code>VITE_SUPABASE_URL</code></td><td>Vercel + local <code>.env</code></td><td>Production Supabase URL (<code>https://msbpnpjjigheoplfnuly.supabase.co</code>)</td></tr>
+    <tr><td><code>VITE_SUPABASE_ANON_KEY</code></td><td>Vercel + local <code>.env</code></td><td>Production anon key (safe to ship; RLS is the real guard)</td></tr>
+    <tr><td><code>VITE_SENTRY_DSN</code></td><td>Vercel (optional)</td><td>Enables error monitoring when present</td></tr>
+  </table>
+  <p>Local development against staging: point <code>.env</code> at the staging URL/key and run <code>npm run dev</code>. Remember to point back to production before deploying.</p>
+
+  <h2>3. Deploying a change</h2>
+  <pre>git add -A
+git commit -m "what changed"
+git push origin main      # CI runs, then Vercel auto-deploys to the live domain</pre>
+  <p>Watch the GitHub Actions run go green and the Vercel deployment reach READY. To verify live: load <code>exams.matramedia.co.in</code>, plus <code>/exam</code>, <code>/check</code>, <code>/verify</code>, and <code>/admin</code>.</p>
+  <div class="warn"><strong>GitHub token:</strong> pushing the CI workflow file (<code>.github/workflows/ci.yml</code>) needs a token with the <em>Workflows</em> permission. Ordinary code pushes need only Contents: read/write.</div>
+
+  <h2>4. Database migrations</h2>
+  <p>Every schema change is a numbered SQL file in <code>supabase/migrations/</code>. They are the authoritative history. Current head: <strong>023</strong>.</p>
+  <p><strong>Procedure:</strong> apply to <em>staging</em> first, verify with synthetic data, then apply the identical SQL to production (Supabase dashboard → SQL editor, or the migration tooling). Migrations are written to be idempotent where possible (<code>IF NOT EXISTS</code>, <code>CREATE OR REPLACE</code>).</p>
+  <table>
+    <tr><th>#</th><th>What it did</th></tr>
+    <tr><td>011</td><td>Encrypted paper pre-fetch + batched answer saves (scale)</td></tr>
+    <tr><td>012</td><td>Per-question timing + integrity events</td></tr>
+    <tr><td>013</td><td>Question bank, student identity, admin roles</td></tr>
+    <tr><td>014</td><td>Item analysis + anomaly detection</td></tr>
+    <tr><td>015</td><td>Organisations, invigilator role, live presence, time extensions</td></tr>
+    <tr><td>016</td><td>Certificates + public verification</td></tr>
+    <tr><td>017</td><td>Tenant branding (org display name / logo)</td></tr>
+    <tr><td>018</td><td>Exam series (modular assessment)</td></tr>
+    <tr><td>019</td><td>Exam code gate + roll+email identity</td></tr>
+    <tr><td>020</td><td>Server-side identity / deadline / response integrity enforcement</td></tr>
+    <tr><td>021</td><td>Org-scope every admin table policy &amp; RPC</td></tr>
+    <tr><td>022</td><td>Student RPCs verify email, not name</td></tr>
+    <tr><td>023</td><td>Per-org question bank + org-scoped audit log</td></tr>
+  </table>
+
+  <h2>5. Runbooks</h2>
+
+  <h3>Onboard a new partner college</h3>
+  <ol>
+    <li><strong>Team</strong> tab → Organisations → add the college (name; optionally display name/logo via the DB).</li>
+    <li>Add their admin(s) by email with role <em>examiner</em> (or <em>owner</em> for their own org), scoped to their organisation.</li>
+    <li>They sign in with Google and see only their own exams, students, bank, and audit. Verified isolation is enforced at the database level.</li>
+    <li>Decide whether any of your BharatVidya bank questions should be shared (set their <code>organization_id</code> to NULL) — otherwise each org's bank is private.</li>
+  </ol>
+
+  <h3>Run a large (1,000–2,000+) exam</h3>
+  <ol>
+    <li>Compose/upload the paper; upload the roster; confirm counts on the batch summary.</li>
+    <li>Share the exam code. Tell students to run <code>/check</code> the day before.</li>
+    <li>Optional but recommended for a first big event: run the load test against staging (next runbook).</li>
+    <li>At start, <strong>Start Now</strong> and watch Mission Control. Students pre-fetch the encrypted paper during the waiting room, so the start is smooth.</li>
+    <li>Grant time extensions individually as needed; disconnected students just reopen the link.</li>
+  </ol>
+
+  <h3>Load-test before a big event</h3>
+  <ol>
+    <li>Restore the staging project (Supabase dashboard). Note: free tier allows 2 active projects — you may need to pause another first.</li>
+    <li>Ensure staging schema is current (apply any missing migrations).</li>
+    <li>Create an active test batch + questions; grab its id.</li>
+    <li>Run <code>k6 run -e SUPABASE_URL=... -e SUPABASE_ANON_KEY=... -e BATCH_ID=... -e VUS=2000 loadtest/k6-exam-flow.js</code>.</li>
+    <li>Pass criteria are enforced by k6: &lt;1% errors, p95 &lt; 2s. Pause staging again afterward.</li>
+  </ol>
+
+  <h3>Pause / restore production</h3>
+  <p>Free-tier projects pause after inactivity. Restore from the Supabase dashboard (or the management API). After a long pause, sanity-check that the new RPCs respond before any real exam.</p>
+
+  <h3>Rotate the anon key</h3>
+  <p>If ever needed: rotate in Supabase → Settings → API, then update <code>VITE_SUPABASE_ANON_KEY</code> in Vercel and redeploy. The anon key is not a secret (RLS guards everything) but rotating is harmless.</p>
+
+  <h2>6. Security model — what protects what</h2>
+  <ul>
+    <li><strong>Students never see answer keys</strong> (stripped server-side; scoring in DB).</li>
+    <li><strong>RLS on all tables;</strong> anon role has only explicit column grants.</li>
+    <li><strong>Entry</strong> = exam code (routing) + roll&nbsp;+&nbsp;email match against roster (the credential), enforced inside <code>create_attempt</code>.</li>
+    <li><strong>Deadline</strong> and <strong>response-belongs-to-batch</strong> enforced server-side.</li>
+    <li><strong>Tenant isolation:</strong> every admin policy and RPC is org-scoped via <code>batch_in_my_org()</code> / <code>attempt_in_my_org()</code> / <code>series_in_my_org()</code>. Global admins (org = NULL) see all.</li>
+    <li><strong>Single session</strong> per student via rotating tokens; <strong>audit log</strong> for destructive actions.</li>
+  </ul>
+
+  <h2>7. Known follow-ups (not yet done)</h2>
+  <ul>
+    <li><strong>Rate limiting</strong> on <code>find_batch_by_code</code> — needs gateway/edge config (Postgres can't do it cleanly). Low risk given 8-char codes + roster-identity backstop.</li>
+    <li><strong>Internationalised UI strings</strong> (EN/HI/MR) — architecture is ready; it's a content project. Devanagari content already renders.</li>
+    <li><strong>Series certificate</strong> distinct from module certificates — small addition if a college asks.</li>
+    <li><strong>Custom per-tenant logo upload UI</strong> — the <code>organizations.logo_url</code> field exists; editing it from the UI is a minor add.</li>
+    <li>Enable <strong>MFA</strong> for admin accounts in Supabase Auth settings before high-stakes use.</li>
+  </ul>
+
+  <h2>8. Troubleshooting</h2>
+  <table>
+    <tr><th>Symptom</th><th>Likely cause / fix</th></tr>
+    <tr><td>"Setup incomplete" screen</td><td>Env vars missing/wrong in Vercel. Check <code>VITE_SUPABASE_*</code>.</td></tr>
+    <tr><td>Admin login bounces</td><td>Redirect URL not in Supabase → Auth → URL Configuration. Add the live domain.</td></tr>
+    <tr><td>Student "details don't match"</td><td>Roll/email not exactly as in roster, or no roster uploaded. Check the batch roster.</td></tr>
+    <tr><td>Exam not found by code</td><td>Batch not <em>scheduled</em>/<em>active</em>, or an old batch created before codes existed (active batches keep their original code). Recreate if needed.</td></tr>
+    <tr><td>Deploy stuck "Initializing"</td><td>Vercel queue hiccup — push an empty commit or Redeploy.</td></tr>
+    <tr><td>Compose says "bank has only N…"</td><td>Not enough <em>approved</em> questions for that topic/difficulty in this org's bank (+shared). Approve more or relax the blueprint.</td></tr>
+  </table>
+
+  <h2>9. Cost</h2>
+  <p>Currently ~₹0/month (Supabase + Vercel + Sentry free tiers). Real scale will eventually require paid Supabase (connection/bandwidth) — budget when sustained usage grows. Reference build value: a comparable platform from a Pune/Bengaluru agency would be roughly ₹70&nbsp;lakh–₹1.3&nbsp;crore.</p>
+
+  <h2>10. Key references</h2>
+  <ul>
+    <li>Repo: <code>github.com/Chiinmay159/bharatvidya-assessment</code></li>
+    <li>Live: <code>exams.matramedia.co.in</code> · Admin: <code>/admin</code> · Student: <code>/exam</code> · Check: <code>/check</code> · Verify: <code>/verify</code></li>
+    <li>Change logs in repo: <code>BUNDLE1/2/3-CHANGES.md</code>, <code>AUDIT-REPORT.md</code>, <code>AUDIT-2-FINDINGS.md</code></li>
+    <li>Schema: <code>supabase/schema.sql</code> + <code>supabase/migrations/*.sql</code></li>
+    <li>Load test: <code>loadtest/k6-exam-flow.js</code></li>
+  </ul>
+</div>
+</body>
+</html>

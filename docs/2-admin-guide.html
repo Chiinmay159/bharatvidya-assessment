@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matra — Administrator Guide</title>
+<style>
+  :root{--ink:#1C1B18;--ink-2:#45433D;--ink-3:#6B685F;--blue:#1B2D4F;--gold:#A8871E;--rule:#E3DCCB;--bg:#FAF8F2;--surface:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .page{background:var(--surface);max-width:210mm;margin:0 auto;padding:22mm 20mm}
+  h1{font-family:Georgia,serif;font-size:28px;margin:0 0 4px;letter-spacing:-.4px}
+  h2{font-family:Georgia,serif;font-size:19px;margin:28px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+  h3{font-size:14px;margin:16px 0 4px;color:var(--blue)}
+  p,li{color:var(--ink-2)}
+  .sub{color:var(--ink-3);font-size:13px;margin:0 0 2px}
+  .gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),#C9A227 40%,#E8D48A);margin:0 0 18px;border-radius:2px}
+  ol{padding-left:22px} ol>li{margin:7px 0}
+  ul{padding-left:20px} ul>li{margin:3px 0}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:3px}
+  .note{background:var(--bg);border-left:3px solid var(--gold);padding:10px 14px;margin:12px 0;font-size:13.5px}
+  .role{display:inline-block;font-size:11px;font-weight:700;border:1px solid var(--rule);border-radius:4px;padding:1px 7px;margin-right:4px;color:var(--blue)}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  @media print{body{background:#fff}.page{padding:0;max-width:none}h2{break-after:avoid}}
+  @page{size:A4;margin:18mm}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="gold-rule"></div>
+  <p class="sub">ADMINISTRATOR GUIDE</p>
+  <h1>Running exams on Matra</h1>
+  <p class="sub">For examiners and invigilators · exams.matramedia.co.in/admin</p>
+
+  <h2>1. Signing in &amp; roles</h2>
+  <p>Open <code>/admin</code> and sign in with the Google account your administrator authorised. Access is decided by your role, not a password the platform stores.</p>
+  <table>
+    <tr><th>Role</th><th>Can do</th></tr>
+    <tr><td><span class="role">OWNER</span></td><td>Everything, including managing the team, organisations, and deleting data.</td></tr>
+    <tr><td><span class="role">EXAMINER</span></td><td>Create &amp; run exams, manage the question bank and papers, issue certificates, view results.</td></tr>
+    <tr><td><span class="role">INVIGILATOR</span></td><td>Monitor exams live and assist students on exam day.</td></tr>
+    <tr><td><span class="role">VIEWER</span></td><td>Read-only access to results and analytics.</td></tr>
+  </table>
+  <p>If your account is scoped to an institution, you see only that institution's exams, students, and question bank.</p>
+
+  <h2>2. The exam lifecycle at a glance</h2>
+  <ol>
+    <li>Create the batch (the exam) with its schedule and rules.</li>
+    <li>Add questions — compose from the bank or upload a CSV.</li>
+    <li>Upload the roster (roll number, name, email).</li>
+    <li>Mark it Scheduled; share the exam code with students.</li>
+    <li>Start it (Start Now) at exam time.</li>
+    <li>Monitor live in Mission Control.</li>
+    <li>End it, then view Results, Item Analysis, and issue Certificates.</li>
+  </ol>
+
+  <h2>3. Create a batch</h2>
+  <p>From the dashboard, <strong>Create New Batch</strong>. Set the name, date/time (IST), duration, and (optionally) questions-per-student, passing percentage, and maximum attempts. Each batch is automatically assigned an <strong>8-character exam code</strong>.</p>
+  <ul>
+    <li><strong>Institution</strong> — if more than one exists, pick the one this exam belongs to.</li>
+    <li><strong>Show results to students</strong> — when off, students see "Exam submitted" but not a score. Toggleable any time.</li>
+    <li><strong>Passing percentage / Max attempts</strong> — multiple attempts require a pass mark; each retry uses a different question selection.</li>
+    <li><strong>Publicly listed</strong> — leave OFF for normal exams (reachable only by code). Turn ON only for open/practice events.</li>
+  </ul>
+  <div class="note">After creating, open the batch (Edit) to see its exam code and to download a <strong>batch summary</strong> — a one-page sheet with the code, schedule, counts, and a warning if no roster is set.</div>
+
+  <h2>4. Add questions</h2>
+  <h3>Option A — Compose from the question bank</h3>
+  <p>On the batch's <strong>Questions</strong> screen choose <strong>Compose paper</strong>. Add rules by topic, difficulty, and count (e.g. 10 × Vedanta easy). Live availability is shown per rule. The system copies approved bank questions into this paper, preferring least-recently-used items.</p>
+  <h3>Option B — Upload CSV</h3>
+  <p>Columns: <code>question, option_a, option_b, option_c, option_d, correct</code> (correct = A/B/C/D). UTF-8; Devanagari supported.</p>
+
+  <h2>5. The question bank &amp; review</h2>
+  <p>The <strong>Question Bank</strong> tab holds reusable questions with metadata (topic, difficulty, Bloom's level, language, tags). Workflow: <strong>draft → in review → approved → retired</strong>.</p>
+  <ul>
+    <li>Only <strong>approved</strong> questions can be composed into a paper.</li>
+    <li><strong>Four-eyes rule:</strong> you cannot approve a question you authored — a different admin must approve it.</li>
+    <li>Editing the text or answer of an approved question sends it back to draft (new version) for re-review.</li>
+    <li>Questions are private to your institution; questions marked shared are visible to all.</li>
+  </ul>
+
+  <h2>6. Upload the roster</h2>
+  <p>On the batch's <strong>Roster</strong> screen, provide roll number, name, and email for each student. Identity at entry is verified on <strong>roll number + email together</strong> — both must match. Without a roster, anyone with the code can enter under any name (low-stakes only; you'll see a warning).</p>
+
+  <h2>7. Share the exam code &amp; go live</h2>
+  <ol>
+    <li>Mark the batch <strong>Scheduled</strong>.</li>
+    <li>Share the <strong>8-character exam code</strong> (notice board, admit card, or instructor). Students enter it at <code>exams.matramedia.co.in/exam</code>.</li>
+    <li>At exam time, open the batch and choose <strong>Start Now</strong>. Students in the waiting room advance automatically.</li>
+  </ol>
+  <div class="note">Ask students to run the <strong>System Check</strong> at <code>/check</code> a day before, on the device they'll use.</div>
+
+  <h2>8. Mission Control (exam day)</h2>
+  <p>On an active batch, choose <strong>Live</strong>. The exam code is shown at the top with a copy button. The table refreshes automatically and shows each student's state:</p>
+  <ul>
+    <li><strong>In exam</strong> — active, with a recent heartbeat and a live answer count.</li>
+    <li><strong>Disconnected</strong> — no heartbeat for 90 seconds. The student can simply reopen the exam link and resume; their answers are already saved.</li>
+    <li><strong>Submitted</strong> — finished.</li>
+    <li><strong>Flagged</strong> — elevated tab-switch / integrity signals (for review, not automatic action).</li>
+  </ul>
+  <p><strong>Grant extra time:</strong> use <em>Extend time</em> on a student's row. It takes effect within ~30 seconds and must be granted before their timer expires.</p>
+
+  <h2>9. Results, analysis &amp; certificates</h2>
+  <ul>
+    <li><strong>Results</strong> — per-student scores; sortable; CSV export.</li>
+    <li><strong>Item analysis &amp; integrity report</strong> — difficulty/discrimination per question (flagged where weak), distractor spread, and the anomaly report. Includes a one-click <strong>Report Pack</strong> (.xlsx) — the hand-off artifact for the institution.</li>
+    <li><strong>Certificates</strong> — Issue creates one certificate per eligible student (passing students when a pass mark is set). Print produces A4 certificates with a QR pointing to the public verification page. Students/employers verify at <code>/verify</code>.</li>
+  </ul>
+
+  <h2>10. Exam series (modular assessment)</h2>
+  <p>Use the <strong>Series</strong> tab for a single mark-out-of-100 delivered as weighted modules across a term (e.g. 20-20-20-40).</p>
+  <ol>
+    <li>Create the series with module weights and an aggregate pass mark.</li>
+    <li>Create a normal batch for each module and attach it to its slot (a make-up sitting can be attached too).</li>
+    <li>Paste the series roster once — it syncs to every module's batch.</li>
+    <li>Load results any time for the module-by-module breakdown and weighted aggregate; export CSV.</li>
+  </ol>
+  <p>Module failures stay on the record even when the aggregate passes. Absence counts zero until a make-up is taken. Students see their running total after each module.</p>
+
+  <h2>11. Team &amp; organisations (owners)</h2>
+  <p>The <strong>Team</strong> tab manages admin accounts and institutions. Add an admin by email + role (+ institution to scope them). They sign in with Google immediately — no invitation step. Create organisations here; batches can then be assigned to them.</p>
+
+  <h2>12. Exam-day quick checklist</h2>
+  <ul>
+    <li>☐ Roster uploaded and verified count looks right (batch summary).</li>
+    <li>☐ Questions in the paper ≥ questions-per-student.</li>
+    <li>☐ Exam code shared with students.</li>
+    <li>☐ Students reminded to run <code>/check</code> beforehand.</li>
+    <li>☐ At start time: Start Now → watch Mission Control.</li>
+    <li>☐ After: End exam → Results → Report Pack → Certificates.</li>
+  </ul>
+</div>
+</body>
+</html>

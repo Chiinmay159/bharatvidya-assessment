@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { formatDbError } from '../../lib/errors'
 import { Spinner } from '../shared/Spinner'
 import { downloadReportPack } from '../../lib/reportPack'
+import { openExamReport } from '../../lib/examReport'
 
 /**
  * BatchAnalytics — post-exam item analysis + anomaly report for a batch.
@@ -18,21 +19,27 @@ import { downloadReportPack } from '../../lib/reportPack'
 export function BatchAnalytics({ batch, onBack }) {
   const [items, setItems] = useState(null)
   const [anomalies, setAnomalies] = useState(null)
+  const [summary, setSummary] = useState(null) // { submissions, avgPct, passRate }
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [ia, ar] = await Promise.all([
+        const [ia, ar, pa] = await Promise.all([
           supabase.rpc('item_analysis', { p_batch_id: batch.id }),
           supabase.rpc('anomaly_report', { p_batch_id: batch.id }),
+          supabase.rpc('program_analytics'),
         ])
         if (cancelled) return
         if (ia.error) throw ia.error
         if (ar.error) throw ar.error
         setItems(ia.data ?? [])
         setAnomalies(ar.data ?? [])
+        const row = (pa.data ?? []).find(r => r.batch_id === batch.id)
+        setSummary(row
+          ? { submissions: Number(row.submissions), avgPct: row.avg_percentage == null ? null : Number(row.avg_percentage), passRate: row.pass_rate == null ? null : Number(row.pass_rate) }
+          : { submissions: 0, avgPct: null, passRate: null })
       } catch (err) {
         if (!cancelled) setError(formatDbError(err, 'Failed to load analytics.'))
       }
@@ -65,13 +72,22 @@ export function BatchAnalytics({ batch, onBack }) {
             {items.length} questions · {flagged.length} flagged for review · {anomalies.length} integrity flag{anomalies.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={() => downloadReportPack(batch)}
-          className="btn btn-secondary" style={{ padding: '9px 16px', fontSize: 13, flexShrink: 0 }}
-          title="Excel workbook: Results, Item Analysis, Anomalies, Certificates — the hand-off artifact for the institution"
-        >
-          ⬇ Download report pack (.xlsx)
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => openExamReport(batch, items, anomalies, summary ?? { submissions: 0, avgPct: null, passRate: null })}
+            className="btn btn-secondary" style={{ padding: '9px 16px', fontSize: 13 }}
+            title="Formatted, printable report — use your browser's Save as PDF"
+          >
+            🖨 Printable report (PDF)
+          </button>
+          <button
+            onClick={() => downloadReportPack(batch)}
+            className="btn btn-secondary" style={{ padding: '9px 16px', fontSize: 13 }}
+            title="Excel workbook: Results, Item Analysis, Anomalies, Certificates"
+          >
+            ⬇ Report pack (.xlsx)
+          </button>
+        </div>
       </div>
 
       {/* ── Anomalies ── */}
