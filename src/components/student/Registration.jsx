@@ -149,7 +149,7 @@ export function Registration({ batch, onRegistered, onBack }) {
 
           {/* Phase 1 — Roll number */}
           {phase === 'roll' && (
-            <div className="card u-slide-up" style={{ padding: '28px 28px 24px' }}>
+            <div className="card card-heritage u-slide-up" style={{ padding: '28px 28px 24px' }}>
               <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }}>
                 Verify your roll number
               </h1>
@@ -193,7 +193,7 @@ export function Registration({ batch, onRegistered, onBack }) {
 
           {/* Phase 2 — Name entry (no roster) */}
           {phase === 'name' && (
-            <div className="card u-slide-up" style={{ padding: '28px 28px 24px' }}>
+            <div className="card card-heritage u-slide-up" style={{ padding: '28px 28px 24px' }}>
               <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }}>
                 Enter your name
               </h1>

@@ -46,7 +46,7 @@ export function Instructions({ batch, rollNumber, onBegin }) {
             </div>
           </div>
 
-          <div className="card u-slide-up" style={{ padding: '32px 28px' }}>
+          <div className="card card-heritage u-slide-up" style={{ padding: '32px 28px' }}>
             <h1 style={{ margin: '0 0 6px', fontSize: 21, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px' }}>
               Before you begin
             </h1>

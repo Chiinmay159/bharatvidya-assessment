@@ -110,7 +110,7 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '24px 20px',
     }}>
-      <div className="card u-slide-up" style={{ width: '100%', maxWidth: 460, padding: '40px 32px 32px', textAlign: 'center' }}>
+      <div className="card card-heritage u-slide-up" style={{ width: '100%', maxWidth: 460, padding: '40px 32px 32px', textAlign: 'center' }}>
 
         {/* Clock icon with breathing animation */}
         <div

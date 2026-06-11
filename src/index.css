@@ -109,6 +109,14 @@ body {
   background: var(--bg);
 }
 
+/* ── Heritage display headings ───────────────────────────── */
+/* h1/h2 carry the serif voice everywhere (inline styles set   */
+/* size/weight/color but never font-family, so this cascades   */
+/* cleanly through every screen). h3+ stay sans for data work. */
+h1, h2 {
+  font-family: var(--font-display);
+}
+
 /* ── Focus ring ──────────────────────────────────────────── */
 *:focus-visible {
   outline: 2px solid var(--accent);
@@ -176,6 +184,11 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+}
+
+/* ── Heritage card — gold cap for focal moments ──────────── */
+.card-heritage {
+  border-top: 3px solid var(--accent);
 }
 
 /* ── Batch card ──────────────────────────────────────────── */
@@ -314,13 +327,13 @@ body {
   letter-spacing: -.02em;
 }
 
-/* ── Admin nav tab ───────────────────────────────────────── */
+/* ── Admin nav tab (on dark heritage header) ─────────────── */
 .nav-tab {
   all: unset;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-2);
+  color: rgba(253,251,245,.62);
   padding: 0 14px;
   height: 100%;
   display: inline-flex;
@@ -339,12 +352,17 @@ body {
   transform: scaleX(0);
   transition: transform var(--t-base) var(--ease-smooth);
 }
-.nav-tab:hover { color: var(--text-1); }
+.nav-tab:hover { color: rgba(253,251,245,.92); }
 .nav-tab.is-active {
-  color: var(--accent-deep);
+  color: var(--accent-md);
   font-weight: 600;
 }
 .nav-tab.is-active::after { transform: scaleX(1); }
+
+/* ── Stat card — quiet blue cap line ─────────────────────── */
+.stat-card {
+  border-top: 2px solid var(--blue);
+}
 
 /* ── Admin table row hover ───────────────────────────────── */
 .table-row {

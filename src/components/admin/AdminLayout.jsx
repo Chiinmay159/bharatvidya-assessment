@@ -32,23 +32,23 @@ export function AdminLayout({ user, children, navItems = [], orgLabel }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Top nav ──────────────────────────────────────── */}
+      {/* ── Gold rule + dark heritage top nav ─────────────── */}
+      <div aria-hidden="true" style={{ height: 3, background: 'linear-gradient(90deg, var(--accent-deep), var(--accent) 40%, var(--accent-md))' }} />
       <header style={{
         position: 'sticky', top: 0, zIndex: 30,
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border)',
-        boxShadow: 'var(--shadow-sm)',
+        background: 'var(--gradient-deep)',
+        boxShadow: 'var(--shadow-md)',
         height: 56,
         display: 'flex', alignItems: 'stretch',
         padding: '0 20px',
         gap: 0,
       }}>
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 20, borderRight: '1px solid var(--border)', flexShrink: 0 }}>
-          <img src="/logo.png" alt="" style={{ width: 30, height: 30, borderRadius: '50%' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 20, borderRight: '1px solid rgba(253,251,245,.12)', flexShrink: 0 }}>
+          <img src="/logo.png" alt="" style={{ width: 30, height: 30, borderRadius: '50%', boxShadow: '0 0 0 2px rgba(253,251,245,.15)' }} />
           <div style={{ lineHeight: 1.2 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-1)', letterSpacing: '-.1px' }}>{orgLabel ?? 'Matra'}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', letterSpacing: '.04em', textTransform: 'uppercase' }}>Admin Portal</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#FDFBF5', letterSpacing: '-.1px' }}>{orgLabel ?? 'Matra'}</div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--accent-md)', letterSpacing: '.12em', textTransform: 'uppercase' }}>Admin Portal</div>
           </div>
         </div>
 
@@ -77,20 +77,23 @@ export function AdminLayout({ user, children, navItems = [], orgLabel }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
               width: 28, height: 28, borderRadius: '50%',
-              background: 'var(--accent-lt)', border: '1.5px solid var(--accent-md)',
+              background: 'rgba(201,162,39,.18)', border: '1.5px solid var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+              fontSize: 12, fontWeight: 700, color: 'var(--accent-md)', flexShrink: 0,
             }}>
               {initials}
             </div>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 12, color: 'rgba(253,251,245,.55)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.email}
             </span>
           </div>
           <button
             onClick={handleSignOut}
-            className="btn btn-secondary"
-            style={{ padding: '5px 12px', fontSize: 12 }}
+            style={{
+              all: 'unset', cursor: 'pointer', padding: '5px 12px', fontSize: 12, fontWeight: 600,
+              color: 'rgba(253,251,245,.75)', border: '1px solid rgba(253,251,245,.25)',
+              borderRadius: 'var(--radius-sm)',
+            }}
           >
             Sign out
           </button>

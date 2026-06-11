@@ -12,7 +12,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
   if (alreadySubmitted && !showResults && !canRetry) {
     return (
       <div style={pageStyle}>
-        <div className="card u-slide-up" style={cardStyle}>
+        <div className="card card-heritage u-slide-up" style={cardStyle}>
           <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
             <ClipboardIcon />
           </div>
@@ -32,7 +32,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
   if (alreadySubmitted && !showResults && canRetry) {
     return (
       <div style={pageStyle}>
-        <div className="card u-slide-up" style={cardStyle}>
+        <div className="card card-heritage u-slide-up" style={cardStyle}>
           <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
             <RetryIcon />
           </div>
@@ -51,7 +51,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
   if (alreadySubmitted && showResults && percentage == null) {
     return (
       <div style={pageStyle}>
-        <div className="card u-slide-up" style={cardStyle}>
+        <div className="card card-heritage u-slide-up" style={cardStyle}>
           <div style={{ ...iconWrap, background: 'var(--warn-lt)', border: '2px solid #FDE68A' }}>
             <WarningIcon />
           </div>
@@ -69,7 +69,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
   if (!showResults && !canRetry) {
     return (
       <div style={pageStyle}>
-        <div className="card u-slide-up" style={cardStyle}>
+        <div className="card card-heritage u-slide-up" style={cardStyle}>
           <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
             <ClipboardIcon />
           </div>
@@ -95,7 +95,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
   if (!showResults && canRetry) {
     return (
       <div style={pageStyle}>
-        <div className="card u-slide-up" style={cardStyle}>
+        <div className="card card-heritage u-slide-up" style={cardStyle}>
           <div style={{ ...iconWrap, background: 'var(--accent-lt)', border: '2px solid var(--accent-md)' }}>
             <RetryIcon />
           </div>
@@ -121,7 +121,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, onRetry }
 
   return (
     <div style={pageStyle}>
-      <div className="card u-slide-up" style={cardStyle}>
+      <div className="card card-heritage u-slide-up" style={cardStyle}>
 
         {/* Status icon */}
         <div style={{ ...iconWrap, background: resultBg, border: `2px solid ${resultBorder}` }}>
