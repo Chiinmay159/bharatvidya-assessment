@@ -14,6 +14,9 @@
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://exams.matramedia.co.in/students.html" />
   <meta property="og:image" content="https://exams.matramedia.co.in/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -79,55 +82,67 @@
   </script>
   <style>
     :root {
-      --bg: #FAF8F2; --surface: #FFFFFF; --surface-2: #F4F0E7;
-      --text-1: #1C1B18; --text-2: #4A463C; --text-3: #7A7466;
-      --accent: #C9A227; --accent-deep: #A8871E; --accent-lt: #FBF5E2; --accent-md: #E8D48A;
-      --hero: linear-gradient(150deg, #0D1830 0%, #1B2D4F 55%, #3A1521 130%);
-      --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      --font-display: Georgia, 'Playfair Display', 'Times New Roman', serif;
+      --ink: #1C1B18; --ivory: #FBF7EE; --carbon: #14120E;
+      --gold: #C9A227; --gold-l: #E8C55B; --teal: #0F7B7C; --red: #A62B25;
+      --body-2: #4B4438; --body-3: #8A8272;
+      --card-shadow: 0px 0px 0px 1px rgba(28,27,24,0.06), 0px 1px 2px -1px rgba(28,27,24,0.06), 0px 2px 4px 0px rgba(28,27,24,0.04);
+      --font-sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+      --font-display: 'Fraunces', Georgia, serif;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: var(--font-sans); color: var(--text-1); background: var(--bg); line-height: 1.65; }
-    a { color: var(--accent-deep); }
-    .hero { background: var(--hero); color: #fff; padding: 56px 20px 64px; }
-    .hero-inner, .wrap { max-width: 780px; margin: 0 auto; }
-    .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 40px; }
-    .brand a { color: #fff; text-decoration: none; font-family: var(--font-display); font-size: 22px; font-weight: 700; }
-    .brand span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
-    .hero h1 { font-family: var(--font-display); font-size: clamp(30px, 5.5vw, 44px); margin: 0 0 14px; letter-spacing: -.5px; }
-    .hero .lede { font-size: 17px; color: rgba(255,255,255,.82); max-width: 620px; margin: 0; }
-    .hero .cta { display: inline-block; margin-top: 26px; background: var(--accent); color: #1C1B18; font-weight: 700; text-decoration: none; padding: 12px 22px; border-radius: 8px; font-size: 15px; }
-    main { padding: 48px 20px 72px; }
-    h2 { font-family: var(--font-display); font-size: 26px; margin: 48px 0 14px; letter-spacing: -.3px; }
+    html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { margin: 0; font-family: var(--font-sans); color: var(--ink); background: var(--ivory); line-height: 1.7; }
+    a { color: var(--teal); font-weight: 600; }
+    .rule { height: 2.5px; background: linear-gradient(90deg, var(--gold) 0%, var(--gold-l) 30%, var(--teal) 68%, var(--red) 100%); }
+    .hero { position: relative; overflow: hidden; background: var(--carbon); color: var(--ivory); padding: 52px 20px 64px; }
+    .hero::before, .hero::after { content: ''; position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; }
+    .hero::before { width: 480px; height: 480px; top: -180px; right: -120px; background: radial-gradient(circle, rgba(15,123,124,.35), transparent 62%); }
+    .hero::after { width: 420px; height: 420px; bottom: -200px; left: -100px; background: radial-gradient(circle, rgba(232,197,91,.22), transparent 62%); }
+    .hero-inner, .wrap { max-width: 780px; margin: 0 auto; position: relative; }
+    .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 42px; }
+    .brand a { color: var(--ivory); text-decoration: none; font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+    .brand span { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: rgba(251,247,238,.45); font-weight: 600; }
+    .kicker { font-size: 11px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-l); margin: 0 0 14px; }
+    .hero h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(32px, 6vw, 52px); margin: 0 0 14px; letter-spacing: -.02em; line-height: 1.08; text-wrap: balance; }
+    .hero .lede { font-size: 17px; color: rgba(251,247,238,.8); max-width: 620px; margin: 0; text-wrap: pretty; }
+    .hero .cta { display: inline-block; margin-top: 28px; background: linear-gradient(135deg, var(--gold-l), var(--gold)); color: var(--carbon); font-weight: 700; text-decoration: none; padding: 13px 26px; border-radius: 999px; font-size: 15px; box-shadow: 0 6px 28px rgba(201,162,39,.35); transition: transform .15s ease-out; }
+    .cta:hover { transform: scale(1.03); }
+    .cta:active { transform: scale(0.96); }
+    main { padding: 52px 20px 76px; }
+    h2 { font-family: var(--font-display); font-weight: 600; font-size: 27px; margin: 52px 0 16px; letter-spacing: -.01em; text-wrap: balance; }
     h2:first-child { margin-top: 0; }
     .steps { counter-reset: step; padding: 0; margin: 20px 0 0; list-style: none; }
-    .steps li { counter-increment: step; background: var(--surface); border: 1px solid #E7E1D2; border-radius: 10px; padding: 16px 18px 16px 58px; margin-bottom: 10px; position: relative; }
-    .steps li::before { content: counter(step); position: absolute; left: 16px; top: 16px; width: 28px; height: 28px; border-radius: 50%; background: #1B2D4F; color: var(--accent-md); font-family: var(--font-display); font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-    .steps strong { display: block; margin-bottom: 2px; }
-    .steps p { margin: 0; color: var(--text-2); font-size: 14px; }
-    .callout { background: var(--accent-lt); border: 1px solid var(--accent-md); border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 18px; margin: 18px 0; font-size: 14.5px; }
-    .callout strong { color: var(--accent-deep); }
-    ul.plain { padding-left: 20px; color: var(--text-2); font-size: 15px; }
-    .faq { border-top: 1px solid #E7E1D2; }
-    .faq details { border-bottom: 1px solid #E7E1D2; padding: 4px 0; }
-    .faq summary { cursor: pointer; font-weight: 700; padding: 12px 0; font-size: 15.5px; list-style-position: outside; }
-    .faq-answer { margin: 0 0 14px; color: var(--text-2); font-size: 15px; }
-    footer { border-top: 1px solid #E7E1D2; padding: 26px 20px 40px; font-size: 13px; color: var(--text-3); }
-    footer .wrap { display: flex; gap: 18px; flex-wrap: wrap; }
-    footer a { color: var(--text-2); font-weight: 600; text-decoration: none; }
+    .steps li { counter-increment: step; background: #FFFFFF; box-shadow: var(--card-shadow); border-radius: 14px; padding: 17px 18px 17px 60px; margin-bottom: 10px; position: relative; }
+    .steps li::before { content: counter(step, decimal-leading-zero); position: absolute; left: 18px; top: 19px; font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--gold); }
+    .steps strong { display: block; margin-bottom: 2px; font-family: var(--font-display); font-size: 16.5px; }
+    .steps p { margin: 0; color: var(--body-2); font-size: 14.5px; text-wrap: pretty; }
+    .callout { background: linear-gradient(130deg, rgba(15,123,124,.08), rgba(232,197,91,.1)); border-radius: 14px; box-shadow: var(--card-shadow); padding: 17px 20px; margin: 20px 0; font-size: 15px; text-wrap: pretty; }
+    .callout strong { color: var(--teal); }
+    ul.plain { padding-left: 20px; color: var(--body-2); font-size: 15px; }
+    p { color: var(--body-2); font-size: 15px; text-wrap: pretty; }
+    .faq { border-top: 1px solid #E9E2D0; }
+    .faq details { border-bottom: 1px solid #E9E2D0; padding: 4px 0; }
+    .faq summary { cursor: pointer; font-weight: 700; padding: 13px 0; font-size: 15.5px; color: var(--ink); }
+    .faq-answer { margin: 0 0 15px; color: var(--body-2); font-size: 15px; text-wrap: pretty; }
+    footer { background: var(--carbon); padding: 0 0 34px; font-size: 13.5px; }
+    footer .wrap { display: flex; gap: 22px; flex-wrap: wrap; padding: 26px 20px 0; }
+    footer a { color: rgba(251,247,238,.78); font-weight: 600; text-decoration: none; padding: 4px 0; }
+    footer a.gold { color: var(--gold-l); }
   </style>
 </head>
 <body>
+  <div class="rule" aria-hidden="true"></div>
   <header class="hero">
     <div class="hero-inner">
       <nav class="brand">
         <a href="/">Matra</a>
         <span>Assessment Platform</span>
       </nav>
+      <p class="kicker">For students</p>
       <h1>Taking an exam on Matra</h1>
       <p class="lede">Everything you need before exam day: how entry works, what to keep ready,
       and why a dropped connection will not cost you your answers.</p>
-      <a class="cta" href="/exam">Go to my exam →</a>
+      <a class="cta" href="/exam">Enter your exam →</a>
     </div>
   </header>
 
@@ -136,11 +151,11 @@
       <h2>Your path, start to finish</h2>
       <ol class="steps">
         <li><strong>Get your exam code from your institution.</strong>
-          <p>It is shared on the notice board, admit card, or by your instructor. Matra never emails codes to students.</p></li>
+          <p>It is shared on the notice board, admit card, or by your teacher. Matra never emails codes to students.</p></li>
         <li><strong>Enter the code and verify who you are.</strong>
-          <p>At <a href="/exam">the exam entry page</a>, type the code, then your roll number and the email your institution registered. Both must match the institution's roster.</p></li>
+          <p>At <a href="/exam">the exam entry page</a>, type the code, then your roll number and the email your institution registered. Both must match.</p></li>
         <li><strong>Wait in the waiting room.</strong>
-          <p>The exam opens at the scheduled time for everyone at once — the countdown you see runs on the server's clock, not your device's.</p></li>
+          <p>The exam opens at the scheduled time for everyone at once. The countdown runs on the server's clock, not your device's.</p></li>
         <li><strong>Answer at your pace within the time limit.</strong>
           <p>Every answer is saved the moment you select it. One question at a time; you can see how far along you are.</p></li>
         <li><strong>Submit — or let the timer submit for you.</strong>
@@ -211,11 +226,12 @@
   </main>
 
   <footer>
+    <div class="rule" aria-hidden="true"></div>
     <div class="wrap">
       <a href="/">Home</a>
       <a href="/exam">Take an exam</a>
       <a href="/check">Device check</a>
-      <a href="/verify">Verify a certificate</a>
+      <a href="/verify" class="gold">Verify a certificate</a>
     </div>
   </footer>
 </body>

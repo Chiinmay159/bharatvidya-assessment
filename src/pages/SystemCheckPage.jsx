@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { SiteShell, CARD_SHADOW, INK, CARBON, GOLD, GOLD_L, TEAL } from '../components/site/SiteChrome'
 
 /**
  * SystemCheckPage — self-serve pre-exam device check (route: /check).
@@ -100,51 +101,58 @@ export function SystemCheckPage() {
   const verdict = counts.fail ? 'fail' : counts.warn ? 'warn' : done ? 'pass' : null
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', justifyContent: 'center', padding: '36px 20px' }}>
-      <div style={{ width: '100%', maxWidth: 560 }}>
-        <div className="card" style={{ padding: '32px 28px' }}>
-          <h1 style={{ margin: '0 0 6px', fontSize: 21, fontWeight: 700, color: 'var(--text-1)' }}>
-            Exam system check
+    <SiteShell>
+      <section className="relative overflow-hidden">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="aura absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full opacity-[.16]"
+            style={{ background: `radial-gradient(circle, ${GOLD_L}, transparent 62%)`, filter: 'blur(70px)' }} />
+          <div className="aura aura-2 absolute -bottom-32 -right-24 w-[380px] h-[380px] rounded-full opacity-[.13]"
+            style={{ background: `radial-gradient(circle, ${TEAL}, transparent 62%)`, filter: 'blur(70px)' }} />
+        </div>
+        <div className="relative mx-auto max-w-2xl px-5 md:px-8 pt-14 md:pt-20 pb-24">
+          <p className="m-0 mb-3 text-[11px] font-bold tracking-[.22em] uppercase" style={{ color: TEAL }}>For students</p>
+          <h1 className="m-0 mb-3 font-[Fraunces,serif] font-semibold tracking-tight text-balance text-[clamp(30px,5vw,44px)]" style={{ color: INK }}>
+            Is your device exam-ready?
           </h1>
-          <p style={{ margin: '0 0 24px', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6 }}>
+          <p className="m-0 mb-9 text-[15.5px] leading-[1.75] text-pretty" style={{ color: '#4B4438' }}>
             Run this on the device and internet connection you will use on exam day.
+            It takes half a minute and catches problems while there is still time to fix them.
           </p>
 
-          <div role="list" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: 20 }}>
-            {CHECKS.map((c, i) => {
-              const r = results[c.id]
-              return (
-                <div role="listitem" key={c.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                  background: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)',
-                  borderBottom: i < CHECKS.length - 1 ? '1px solid var(--border)' : 'none',
-                }}>
-                  <StatusIcon status={r?.status} pending={running && !r} />
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{c.label}</div>
-                    {r?.note && <div style={{ fontSize: 12, color: r.status === 'fail' ? 'var(--error)' : 'var(--text-3)', marginTop: 1 }}>{r.note}</div>}
+          <div className="rounded-2xl overflow-hidden mb-6" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
+            <div role="list">
+              {CHECKS.map((c, i) => {
+                const r = results[c.id]
+                return (
+                  <div role="listitem" key={c.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
+                    borderBottom: i < CHECKS.length - 1 ? '1px solid #F1EBDD' : 'none',
+                  }}>
+                    <StatusIcon status={r?.status} pending={running && !r} />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="text-[14.5px] font-semibold" style={{ color: INK }}>{c.label}</div>
+                      {r?.note && <div className="text-[12.5px] mt-0.5" style={{ color: r.status === 'fail' ? 'var(--error)' : '#8A8272' }}>{r.note}</div>}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
 
           {/* Devanagari visual sample for self-verification */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '12px 16px', marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div className="rounded-2xl px-5 py-4 mb-6" style={{ background: '#F4EEDF' }}>
+            <div className="text-[11px] font-bold tracking-[.14em] uppercase mb-1.5" style={{ color: '#8A8272' }}>
               Sample question text — confirm this is readable:
             </div>
-            <p lang="hi" style={{ margin: 0, fontSize: 16, color: 'var(--text-1)', lineHeight: 1.7 }}>
+            <p lang="hi" className="m-0 text-[16px] leading-[1.7]" style={{ color: INK }}>
               परीक्षा में आपका स्वागत है। क्षेत्रज्ञ, धर्मशास्त्र, ज्ञानमार्ग।
             </p>
           </div>
 
           {verdict && (
-            <div role="status" style={{
-              padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 600, marginBottom: 20,
+            <div role="status" className="rounded-2xl px-5 py-4 mb-6 text-[14.5px] font-semibold" style={{
               background: verdict === 'pass' ? 'var(--success-lt)' : verdict === 'warn' ? 'var(--warn-lt)' : 'var(--error-lt)',
               color: verdict === 'pass' ? 'var(--success)' : verdict === 'warn' ? 'var(--warn)' : 'var(--error)',
-              border: '1px solid var(--border)',
             }}>
               {verdict === 'pass' && '✓ Your device is ready for the exam.'}
               {verdict === 'warn' && 'Your device will work, but review the warnings above before exam day.'}
@@ -152,12 +160,17 @@ export function SystemCheckPage() {
             </div>
           )}
 
-          <button onClick={runChecks} disabled={running} className="btn btn-primary" style={{ width: '100%', padding: '12px 16px' }}>
+          <button
+            onClick={runChecks}
+            disabled={running}
+            className="w-full rounded-full px-7 py-3.5 text-[15px] font-bold transition-transform hover:scale-[1.02] active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            style={{ background: `linear-gradient(135deg, ${GOLD_L}, ${GOLD})`, color: CARBON, boxShadow: '0 4px 20px rgba(201,162,39,.3)', border: 'none' }}
+          >
             {running ? 'Checking…' : 'Run check again'}
           </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </SiteShell>
   )
 }
 
