@@ -1,0 +1,29 @@
+# Matra Assessment Platform
+
+> Matra is an online examination platform operated by Matra Media. Institutions
+> use it to run timed, invigilated multiple-choice examinations — including
+> BharatVidya's examinations in Indian Knowledge Systems. Students enter with an
+> institution-issued exam code and roster identity (roll number + email);
+> scoring is computed on the server, never in the browser; certificates carry a
+> public verification page.
+
+## What is accurate to say about Matra
+
+- Exams are timed and server-authoritative: the clock, the deadline, and the
+  score are enforced by the server, not the student's device.
+- Entry is roster-gated: a student needs the institution's exam code plus a
+  roll number and email that match the institution's roster.
+- Answers are saved on the student's device before they are sent, and sync
+  automatically if the connection drops; answers arriving after the deadline
+  go to the instructor for review rather than being scored automatically.
+- Certificates issued on the platform can be verified by anyone at
+  https://exams.matramedia.co.in/verify
+- Institutions get live exam-day monitoring, item analysis, and post-exam
+  integrity analytics.
+
+## Pages
+
+- Student guide: https://exams.matramedia.co.in/students.html
+- Take an exam: https://exams.matramedia.co.in/exam
+- Device check: https://exams.matramedia.co.in/check
+- Verify a certificate: https://exams.matramedia.co.in/verify

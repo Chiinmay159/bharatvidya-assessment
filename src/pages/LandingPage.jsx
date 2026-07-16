@@ -115,6 +115,8 @@ export function LandingPage() {
             © {new Date().getFullYear()} Matra Media · Assessment Platform
           </span>
           <nav aria-label="Footer" style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+            {/* Static content page — plain <a>, lives outside the SPA router */}
+            <a href="/students.html" style={footLink}>Student guide</a>
             <Link to="/check" style={footLink}>System check</Link>
             <Link to="/verify" style={footLink}>Verify certificate</Link>
           </nav>

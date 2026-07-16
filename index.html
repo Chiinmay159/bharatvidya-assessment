@@ -13,8 +13,49 @@
     <meta property="og:title" content="Matra Assessment Platform" />
     <meta property="og:description" content="Secure online examinations with publicly verifiable certificates. Powering BharatVidya." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/logo.png" />
+    <meta property="og:url" content="https://exams.matramedia.co.in/" />
+    <meta property="og:image" content="https://exams.matramedia.co.in/logo.png" />
     <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://exams.matramedia.co.in/" />
+    <!-- Institutional metadata: platform identity + operator. Claims are
+         limited to what pages on this host visibly support. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://exams.matramedia.co.in/#org",
+          "name": "Matra Media",
+          "url": "https://exams.matramedia.co.in/"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://exams.matramedia.co.in/#website",
+          "url": "https://exams.matramedia.co.in/",
+          "name": "Matra Assessment Platform",
+          "publisher": { "@id": "https://exams.matramedia.co.in/#org" }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://exams.matramedia.co.in/#app",
+          "name": "Matra Assessment Platform",
+          "url": "https://exams.matramedia.co.in/",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "Any modern web browser",
+          "publisher": { "@id": "https://exams.matramedia.co.in/#org" },
+          "description": "A platform for timed, invigilated multiple-choice examinations run by institutions. Exams are entered with an institution-issued exam code and roster identity; scoring is computed server-side; certificates are publicly verifiable.",
+          "featureList": [
+            "Timed MCQ examinations with server-authoritative scoring",
+            "Roster-gated entry via institution-issued exam codes",
+            "Answers saved on the student's device and synced automatically through connection drops",
+            "Publicly verifiable certificates",
+            "Live exam-day monitoring and post-exam analytics for institutions"
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
