@@ -4,6 +4,7 @@ import { formatDbError } from '../../lib/errors'
 import { Spinner } from '../shared/Spinner'
 import { downloadReportPack } from '../../lib/reportPack'
 import { openExamReport } from '../../lib/examReport'
+import { SimilarityPanel } from './SimilarityPanel'
 
 /**
  * BatchAnalytics — post-exam item analysis + anomaly report for a batch.
@@ -112,6 +113,9 @@ export function BatchAnalytics({ batch, onBack }) {
           Flags are signals for human review, not verdicts. Investigate before acting on any of them.
         </p>
       </section>
+
+      {/* ── Pairwise similarity forensics ── */}
+      <SimilarityPanel batch={batch} />
 
       {/* ── Item table ── */}
       <section>
