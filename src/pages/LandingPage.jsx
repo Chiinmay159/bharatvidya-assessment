@@ -1,184 +1,385 @@
 import { Link } from 'react-router-dom'
+import { motion as Motion, MotionConfig } from 'motion/react'
 
 /**
  * LandingPage — Matra Assessment Platform (route: /).
  *
- * Heritage design language: ink-blue hero under a gold rule, serif
- * display, ivory cards. A router, not a brochure — each visitor finds
- * their door above the fold on a mid-range phone. Static and light:
- * nothing here touches the exam-day critical path.
+ * Plush editorial-luxury direction: ivory ground, carbon header/footer,
+ * gold as the metal, teal and red as living gradient accents. Fraunces
+ * display over Instrument Sans. Motion for staggered reveals and hover
+ * physics; MotionConfig honours prefers-reduced-motion. Static and
+ * light: nothing here touches the exam-day critical path.
+ *
+ * Copy discipline: declarative, concrete, triadic; every claim on this
+ * page describes shipped, tested behaviour of the platform.
  */
+
+const INK    = '#1C1B18'
+const IVORY  = '#FBF7EE'
+const CARBON = '#14120E'
+const GOLD   = '#C9A227'
+const GOLD_L = '#E8C55B'
+const TEAL   = '#0F7B7C'
+const RED    = '#A62B25'
+
+const ease = [0.22, 1, 0.36, 1]
+const rise = {
+  hidden: { opacity: 0, y: 28 },
+  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.7, ease, delay: i * 0.09 } }),
+}
+
 export function LandingPage() {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen flex flex-col font-[Instrument_Sans,system-ui,sans-serif]" style={{ background: IVORY, color: INK }}>
+        <LocalStyles />
+        <Header />
+        <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+          <Hero />
+          <Guarantees />
+          <StudentPath />
+          <VerifyPanel />
+          <Institutions />
+          <Reframe />
+        </main>
+        <Footer />
+      </div>
+    </MotionConfig>
+  )
+}
 
-      {/* Gold rule — the heritage signature */}
-      <div aria-hidden="true" style={{ height: 3, background: 'linear-gradient(90deg, var(--accent-deep), var(--accent) 40%, var(--accent-md))' }} />
+/* ── Chrome ─────────────────────────────────────────────── */
 
-      {/* ── Hero (ink blue) ── */}
-      <header style={{ background: 'var(--gradient-hero)', padding: '0 24px' }}>
-        <div style={{ maxWidth: 880, margin: '0 auto' }}>
+function Header() {
+  return (
+    <header className="sticky top-0 z-50" style={{ background: 'rgba(20,18,14,.92)', backdropFilter: 'blur(12px)' }}>
+      <div aria-hidden="true" className="h-[2.5px]" style={{ background: `linear-gradient(90deg, ${GOLD} 0%, ${GOLD_L} 30%, ${TEAL} 68%, ${RED} 100%)` }} />
+      <nav className="mx-auto max-w-6xl px-5 md:px-8 h-16 flex items-center justify-between" aria-label="Primary">
+        <Link to="/" className="flex items-baseline gap-2.5 no-underline group">
+          <span className="font-[Fraunces,serif] text-[22px] font-bold tracking-tight" style={{ color: IVORY }}>Matra</span>
+          <span className="hidden sm:inline text-[10px] font-semibold tracking-[.18em] uppercase" style={{ color: 'rgba(251,247,238,.45)' }}>Assessment Platform</span>
+        </Link>
+        <div className="flex items-center gap-5 md:gap-7">
+          <a href="#students" className="hidden md:inline text-[13px] font-semibold no-underline transition-colors" style={{ color: 'rgba(251,247,238,.65)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = GOLD_L)} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(251,247,238,.65)')}>Students</a>
+          <a href="#institutions" className="hidden md:inline text-[13px] font-semibold no-underline transition-colors" style={{ color: 'rgba(251,247,238,.65)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = GOLD_L)} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(251,247,238,.65)')}>Institutions</a>
+          <Link to="/verify" className="hidden sm:inline text-[13px] font-semibold no-underline transition-colors" style={{ color: 'rgba(251,247,238,.65)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = GOLD_L)} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(251,247,238,.65)')}>Verify a certificate</Link>
+          <Link to="/exam" className="no-underline rounded-full px-4 md:px-5 py-2 text-[13px] font-bold transition-transform hover:scale-[1.04] active:scale-[0.96]"
+            style={{ background: `linear-gradient(135deg, ${GOLD_L}, ${GOLD})`, color: CARBON, boxShadow: '0 2px 14px rgba(201,162,39,.35)' }}>
+            Enter your exam
+          </Link>
+        </div>
+      </nav>
+    </header>
+  )
+}
 
-          {/* Top bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-sm) 0' }}>
-            <Wordmark />
-            <Link to="/admin" style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.65)', textDecoration: 'none' }}>
-              Administrator sign in →
+function Footer() {
+  const col = 'flex flex-col gap-2.5'
+  const head = { color: 'rgba(251,247,238,.4)' }
+  const link = { color: 'rgba(251,247,238,.78)' }
+  return (
+    <footer style={{ background: CARBON }}>
+      <div aria-hidden="true" className="h-[2.5px]" style={{ background: `linear-gradient(90deg, ${RED} 0%, ${TEAL} 35%, ${GOLD} 100%)` }} />
+      <div className="mx-auto max-w-6xl px-5 md:px-8 py-14 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div>
+          <div className="flex items-baseline gap-2.5 mb-4">
+            <span className="font-[Fraunces,serif] text-[24px] font-bold" style={{ color: IVORY }}>Matra</span>
+            <span className="text-[10px] font-semibold tracking-[.18em] uppercase" style={head}>Assessment Platform</span>
+          </div>
+          <p className="text-[13.5px] leading-relaxed max-w-xs m-0" style={{ color: 'rgba(251,247,238,.55)' }}>
+            Timed, invigilated online examinations for institutions,
+            including BharatVidya's examinations in Indian Knowledge Systems.
+          </p>
+        </div>
+        <nav className={col} aria-label="For students">
+          <span className="text-[11px] font-bold tracking-[.14em] uppercase" style={head}>Students</span>
+          <Link to="/exam" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Take an exam</Link>
+          <a href="/students.html" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Student guide</a>
+          <Link to="/check" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Device check</Link>
+        </nav>
+        <nav className={col} aria-label="For institutions">
+          <span className="text-[11px] font-bold tracking-[.14em] uppercase" style={head}>Institutions</span>
+          <Link to="/admin" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Admin portal</Link>
+          <a href="#institutions" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Why Matra</a>
+        </nav>
+        <nav className={col} aria-label="Trust">
+          <span className="text-[11px] font-bold tracking-[.14em] uppercase" style={head}>Trust</span>
+          <Link to="/verify" className="text-[13.5px] font-semibold no-underline py-1" style={{ color: GOLD_L }}>Verify a certificate</Link>
+          <a href="mailto:chinmay@matramedia.co.in" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Write to us</a>
+        </nav>
+      </div>
+      <div className="mx-auto max-w-6xl px-5 md:px-8 pb-8">
+        <p className="m-0 pt-6 text-[12px]" style={{ color: 'rgba(251,247,238,.35)', borderTop: '1px solid rgba(251,247,238,.08)' }}>
+          © {new Date().getFullYear()} Matra Media
+        </p>
+      </div>
+    </footer>
+  )
+}
+
+/* ── Hero ───────────────────────────────────────────────── */
+
+function Hero() {
+  return (
+    <section className="relative overflow-hidden" style={{ background: IVORY }}>
+      {/* Living auras */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="aura absolute -top-32 -left-24 w-[520px] h-[520px] rounded-full opacity-[.32]"
+          style={{ background: `radial-gradient(circle at 40% 40%, ${GOLD_L}, transparent 65%)`, filter: 'blur(60px)' }} />
+        <div className="aura aura-2 absolute top-24 -right-32 w-[560px] h-[560px] rounded-full opacity-[.22]"
+          style={{ background: `radial-gradient(circle at 55% 45%, ${TEAL}, transparent 62%)`, filter: 'blur(70px)' }} />
+        <div className="aura aura-3 absolute -bottom-40 left-1/3 w-[460px] h-[460px] rounded-full opacity-[.14]"
+          style={{ background: `radial-gradient(circle at 50% 50%, ${RED}, transparent 60%)`, filter: 'blur(80px)' }} />
+        <Grain />
+      </div>
+
+      <div className="relative mx-auto max-w-6xl px-5 md:px-8 pt-16 md:pt-24 pb-20 md:pb-28">
+        <Motion.p variants={rise} initial="hidden" animate="show" custom={0}
+          className="m-0 mb-5 text-[11px] font-bold tracking-[.22em] uppercase" style={{ color: TEAL }}>
+          Secure examinations · Verifiable results
+        </Motion.p>
+        <Motion.h1 variants={rise} initial="hidden" animate="show" custom={1}
+          className="m-0 font-[Fraunces,serif] font-semibold tracking-[-0.02em] leading-[1.04] text-balance text-[clamp(42px,7.5vw,84px)]"
+          style={{ color: INK }}>
+          An examination<br />
+          is a <em className="not-italic" style={{ background: `linear-gradient(110deg, ${GOLD} 10%, ${RED} 55%, ${TEAL} 95%)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', fontStyle: 'italic', fontFamily: 'Fraunces, serif' }}>promise</em>.
+        </Motion.h1>
+        <Motion.p variants={rise} initial="hidden" animate="show" custom={2}
+          className="mt-7 mb-0 max-w-xl text-[17px] md:text-[19px] leading-[1.75] text-pretty" style={{ color: '#433E33' }}>
+          Students never lose answers to a bad connection. Institutions get scores
+          no one can dispute. Anyone can check a certificate in seconds.
+        </Motion.p>
+        <Motion.div variants={rise} initial="hidden" animate="show" custom={3} className="mt-10 flex flex-wrap items-center gap-4">
+          <Link to="/exam" className="no-underline rounded-full px-7 py-3.5 text-[15px] font-bold transition-transform hover:scale-[1.03] active:scale-[0.96]"
+            style={{ background: `linear-gradient(135deg, ${GOLD_L}, ${GOLD})`, color: CARBON, boxShadow: '0 6px 28px rgba(201,162,39,.4)' }}>
+            Enter your exam →
+          </Link>
+          <Link to="/admin" className="no-underline rounded-full px-7 py-3.5 text-[15px] font-bold transition-colors"
+            style={{ border: `1.5px solid ${INK}`, color: INK }}
+            onMouseEnter={e => { e.currentTarget.style.background = CARBON; e.currentTarget.style.color = IVORY }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = INK }}>
+            Open the admin portal
+          </Link>
+          <Link to="/verify" className="no-underline text-[14px] font-bold" style={{ color: TEAL }}>
+            Verify a certificate ↗
+          </Link>
+        </Motion.div>
+        <Motion.p variants={rise} initial="hidden" animate="show" custom={4}
+          className="mt-12 mb-0 text-[13px]" style={{ color: '#8A8272' }}>
+          Runs <strong style={{ color: '#4B463A' }}>BharatVidya</strong>'s examinations in Indian Knowledge Systems.
+        </Motion.p>
+      </div>
+    </section>
+  )
+}
+
+/* ── Six guarantees ─────────────────────────────────────── */
+
+const GUARANTEES = [
+  { c: GOLD, title: 'Scoring no one can touch', body: 'Answers are scored on the server, never in the browser. The answer key never leaves the server either. Nothing about a result depends on the student’s device.' },
+  { c: TEAL, title: 'Only your students, only your exam', body: 'A student needs the exam code you issued, plus a roll number and email that match your roster. If they don’t match, there is no way in.' },
+  { c: RED, title: 'A dropped connection costs nothing', body: 'Every answer is saved on the student’s device first, then sent. If the network fails, the answers sync when it returns. If they arrive after the deadline, the examiner decides whether to count them.' },
+  { c: TEAL, title: 'Watch the exam live', body: 'See every student’s presence, progress, and integrity signals on one screen. Grant extra time during the exam itself.' },
+  { c: RED, title: 'Honest numbers afterwards', body: 'Item analysis shows which questions worked. Similarity analysis flags students whose answers match more than chance allows. A flag starts an investigation; a person makes the decision.' },
+  { c: GOLD, title: 'Certificates that answer for themselves', body: 'Every certificate carries a code. Anyone can enter it on the verification page and see the holder, the exam, and the result. No phone calls, no attestation letters.' },
+]
+
+function Guarantees() {
+  return (
+    <section className="relative mx-auto max-w-6xl px-5 md:px-8 py-20 md:py-28">
+      <Motion.div initial="hidden" whileInView="show" viewport={{ once: true, margin: '-80px' }}>
+        <Motion.p variants={rise} custom={0} className="m-0 mb-3 text-[11px] font-bold tracking-[.22em] uppercase" style={{ color: RED }}>The platform</Motion.p>
+        <Motion.h2 variants={rise} custom={1} className="m-0 mb-12 font-[Fraunces,serif] font-semibold tracking-tight text-balance text-[clamp(30px,4.5vw,48px)]" style={{ color: INK }}>
+          Six quiet guarantees.
+        </Motion.h2>
+      </Motion.div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {GUARANTEES.map((g, i) => (
+          <Motion.article key={g.title}
+            initial={{ opacity: 0, y: 32 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ duration: 0.6, ease, delay: (i % 3) * 0.1 }}
+            className="rounded-2xl p-7 relative overflow-hidden"
+            style={{ background: '#FFFFFF', boxShadow: '0px 0px 0px 1px rgba(28,27,24,0.06), 0px 1px 2px -1px rgba(28,27,24,0.06), 0px 2px 4px 0px rgba(28,27,24,0.04)' }}>
+            <div aria-hidden="true" className="w-9 h-9 rounded-full mb-5"
+              style={{ background: `radial-gradient(circle at 30% 30%, ${g.c}, ${g.c}22 70%)`, opacity: 0.9 }} />
+            <h3 className="m-0 mb-2.5 font-[Fraunces,serif] text-[19px] font-semibold leading-snug text-balance" style={{ color: INK }}>{g.title}</h3>
+            <p className="m-0 text-[15px] leading-[1.75] text-pretty" style={{ color: '#4B4438' }}>{g.body}</p>
+          </Motion.article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/* ── Student path ───────────────────────────────────────── */
+
+const STEPS = [
+  { n: '01', title: 'Collect your exam code', body: 'Your institution shares it on the notice board, the admit card, or through your teacher. Matra never emails codes to students.' },
+  { n: '02', title: 'Prove it’s you', body: 'Enter your roll number and the email your institution registered for you. Both must match, or the exam will not open.' },
+  { n: '03', title: 'Sit the exam', body: 'The exam starts for everyone at the scheduled time. Every answer is saved the moment you choose it.' },
+]
+
+function StudentPath() {
+  return (
+    <section id="students" className="relative overflow-hidden" style={{ background: '#F4EEDF' }}>
+      <div className="mx-auto max-w-6xl px-5 md:px-8 py-20 md:py-24">
+        <Motion.div initial="hidden" whileInView="show" viewport={{ once: true, margin: '-80px' }}>
+          <Motion.p variants={rise} custom={0} className="m-0 mb-3 text-[11px] font-bold tracking-[.22em] uppercase" style={{ color: TEAL }}>For students</Motion.p>
+          <Motion.h2 variants={rise} custom={1} className="m-0 mb-12 font-[Fraunces,serif] font-semibold tracking-tight text-balance text-[clamp(30px,4.5vw,48px)]" style={{ color: INK }}>
+            Your exam, in three steps.
+          </Motion.h2>
+        </Motion.div>
+        <div className="grid gap-5 md:grid-cols-3">
+          {STEPS.map((s, i) => (
+            <Motion.div key={s.n}
+              initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.6, ease, delay: i * 0.12 }}
+              className="rounded-2xl p-7" style={{ background: IVORY, border: '1px solid #E5DCC6' }}>
+              <span className="font-[Fraunces,serif] text-[34px] font-semibold block mb-3" style={{ color: GOLD }}>{s.n}</span>
+              <h3 className="m-0 mb-2 font-[Fraunces,serif] text-[19px] font-semibold text-balance" style={{ color: INK }}>{s.title}</h3>
+              <p className="m-0 text-[15px] leading-[1.75] text-pretty" style={{ color: '#4B4438' }}>{s.body}</p>
+            </Motion.div>
+          ))}
+        </div>
+        <Motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: 0.3 }}
+          className="mt-9 flex flex-wrap gap-x-8 gap-y-3">
+          <a href="/students.html" className="text-[14.5px] font-bold no-underline" style={{ color: TEAL }}>Read the full student guide →</a>
+          <Link to="/check" className="text-[14.5px] font-bold no-underline" style={{ color: TEAL }}>Run a device check →</Link>
+        </Motion.div>
+      </div>
+    </section>
+  )
+}
+
+/* ── Verify panel ───────────────────────────────────────── */
+
+function VerifyPanel() {
+  return (
+    <section className="mx-auto max-w-6xl px-5 md:px-8 py-20 md:py-24">
+      <Motion.div
+        initial={{ opacity: 0, scale: 0.97 }} whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.7, ease }}
+        className="relative overflow-hidden rounded-3xl px-7 py-14 md:px-16 md:py-16"
+        style={{ background: `linear-gradient(130deg, ${TEAL} 0%, #0A5C5D 55%, ${CARBON} 130%)` }}>
+        <div aria-hidden="true" className="pointer-events-none absolute -top-24 -right-24 w-[380px] h-[380px] rounded-full opacity-30"
+          style={{ background: `radial-gradient(circle, ${GOLD_L}, transparent 65%)`, filter: 'blur(50px)' }} />
+        <p className="m-0 mb-3 text-[11px] font-bold tracking-[.22em] uppercase" style={{ color: GOLD_L }}>Verification</p>
+        <h2 className="m-0 mb-4 font-[Fraunces,serif] font-semibold tracking-tight text-balance text-[clamp(28px,4vw,44px)]" style={{ color: IVORY }}>
+          Holding a Matra certificate?
+        </h2>
+        <p className="m-0 mb-8 max-w-lg text-[16px] leading-[1.75] text-pretty" style={{ color: 'rgba(251,247,238,.85)' }}>
+          Enter the certificate code and see who earned it, in which exam, with what
+          result. It takes seconds. Nothing to sign up for, no one to call.
+        </p>
+        <Link to="/verify" className="inline-block no-underline rounded-full px-7 py-3.5 text-[15px] font-bold transition-transform hover:scale-[1.03] active:scale-[0.96]"
+          style={{ background: `linear-gradient(135deg, ${GOLD_L}, ${GOLD})`, color: CARBON, boxShadow: '0 6px 28px rgba(0,0,0,.3)' }}>
+          Verify a certificate →
+        </Link>
+      </Motion.div>
+    </section>
+  )
+}
+
+/* ── Institutions ───────────────────────────────────────── */
+
+function Institutions() {
+  return (
+    <section id="institutions" className="relative overflow-hidden" style={{ background: CARBON }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 right-0 w-[500px] h-[500px] rounded-full opacity-[.13]"
+          style={{ background: `radial-gradient(circle, ${RED}, transparent 60%)`, filter: 'blur(70px)' }} />
+        <div className="absolute -bottom-40 -left-20 w-[460px] h-[460px] rounded-full opacity-[.1]"
+          style={{ background: `radial-gradient(circle, ${TEAL}, transparent 60%)`, filter: 'blur(70px)' }} />
+        <Grain />
+      </div>
+      <div className="relative mx-auto max-w-6xl px-5 md:px-8 py-20 md:py-28 grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+        <Motion.div initial="hidden" whileInView="show" viewport={{ once: true, margin: '-80px' }}>
+          <Motion.p variants={rise} custom={0} className="m-0 mb-3 text-[11px] font-bold tracking-[.22em] uppercase" style={{ color: GOLD_L }}>For institutions</Motion.p>
+          <Motion.h2 variants={rise} custom={1} className="m-0 mb-5 font-[Fraunces,serif] font-semibold tracking-tight text-balance text-[clamp(30px,4.5vw,50px)]" style={{ color: IVORY }}>
+            Run exams that survive scrutiny.
+          </Motion.h2>
+          <Motion.p variants={rise} custom={2} className="m-0 mb-8 max-w-xl text-[16px] leading-[1.8] text-pretty" style={{ color: 'rgba(251,247,238,.78)' }}>
+            Compose papers from your question bank. Watch every student live on exam
+            day. Publish results the same hour, with certificates anyone can verify.
+            Admin accounts are created by your institution and protected with
+            two-factor authentication.
+          </Motion.p>
+          <Motion.div variants={rise} custom={3}>
+            <Link to="/admin" className="inline-block no-underline rounded-full px-7 py-3.5 text-[15px] font-bold transition-transform hover:scale-[1.03] active:scale-[0.96]"
+              style={{ background: `linear-gradient(135deg, ${GOLD_L}, ${GOLD})`, color: CARBON, boxShadow: '0 6px 28px rgba(201,162,39,.25)' }}>
+              Open the admin portal →
             </Link>
-          </div>
-
-          {/* Headline */}
-          <div style={{ padding: 'var(--space-xl) 0 var(--space-2xl)', textAlign: 'center' }}>
-            <h1 style={{
-              margin: '0 0 var(--space-sm)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(30px, 5.5vw, var(--text-xl))',
-              fontWeight: 700, lineHeight: 1.18, letterSpacing: '-.5px',
-              color: '#FDFBF5',
-            }}>
-              Secure examinations,<br />
-              <span style={{ color: 'var(--accent-md)' }}>verifiable</span> results.
-            </h1>
-            <p style={{ margin: '0 auto', fontSize: 'var(--text-sm)', color: 'rgba(253,251,245,.62)', maxWidth: 460, lineHeight: 1.7 }}>
-              Matra conducts timed, proctored online assessments for institutions —
-              including <strong style={{ color: 'rgba(253,251,245,.9)', fontWeight: 600 }}>BharatVidya</strong>'s
-              examinations in Indian Knowledge Systems.
-            </p>
-          </div>
-        </div>
-      </header>
-
-      {/* ── The two doors — ivory cards overlapping the hero ── */}
-      <main id="main-content" tabIndex={-1} style={{ flex: 1, padding: '0 20px var(--space-xl)', outline: 'none' }}>
-        <div style={{ maxWidth: 880, margin: '0 auto' }}>
-
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
-            gap: 'var(--space-sm)', marginTop: -42, marginBottom: 'var(--space-xl)',
-          }}>
-            <DoorCard
-              to="/exam"
-              primary
-              kicker="Students"
-              title="I'm taking an exam"
-              desc="Have your exam code ready — your institution shares it on the notice board or admit card. Enter it, verify your roll number and email, and begin."
-              cta="Go to my exam"
-            />
-            <DoorCard
-              to="/admin"
-              kicker="Institutions"
-              title="I run exams"
-              desc="Compose papers from a reviewed question bank, monitor every student live on exam day, and publish results with verifiable certificates."
-              cta="Open the admin portal"
-            />
-          </div>
-
-          {/* ── Student path — three numbered steps ── */}
-          <section style={{ marginBottom: 'var(--space-xl)' }}>
-            <h2 style={{
-              margin: '0 0 var(--space-sm)', textAlign: 'center',
-              fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', fontWeight: 700,
-              color: 'var(--text-1)', letterSpacing: '-.3px',
-            }}>
-              Taking an exam? Your path.
-            </h2>
-            <div aria-hidden="true" style={{ width: 48, height: 2, background: 'var(--accent)', margin: '0 auto var(--space-md)' }} />
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-xs)' }}>
-              <StepCard n="1" to="/check" title="Check your device"
-                desc="A 30-second test of your connection, browser, and fonts — run it a day before, on the device you'll use." />
-              <StepCard n="2" to="/exam" title="Take your exam"
-                desc="On the day, enter your exam code and verify your details. The exam begins automatically at the scheduled time." />
-              <StepCard n="3" to="/verify" title="Verify a certificate"
-                desc="Every certificate carries a code and QR. Anyone — an employer, a university — can confirm it is genuine." />
-            </div>
-          </section>
-
-          {/* ── Quiet trust strip ── */}
-          <section style={{
-            background: 'var(--gradient-deep)', borderRadius: 'var(--radius-md)',
-            padding: 'var(--space-md) var(--space-md)', textAlign: 'center',
-          }}>
-            <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 'var(--text-sm)', color: '#FDFBF5', lineHeight: 1.7 }}>
-              Built for real conditions —
-              <span style={{ color: 'var(--accent-md)' }}> 2,000+ students at once</span>, exams that
-              survive network drops, and results an institution can stand behind.
-            </p>
-          </section>
-        </div>
-      </main>
-
-      {/* ── Footer ── */}
-      <footer style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)', padding: 'var(--space-sm) 24px' }}>
-        <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-            © {new Date().getFullYear()} Matra Media · Assessment Platform
-          </span>
-          <nav aria-label="Footer" style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-            {/* Static content page — plain <a>, lives outside the SPA router */}
-            <a href="/students.html" style={footLink}>Student guide</a>
-            <Link to="/check" style={footLink}>System check</Link>
-            <Link to="/verify" style={footLink}>Verify certificate</Link>
-          </nav>
-        </div>
-      </footer>
-    </div>
+          </Motion.div>
+        </Motion.div>
+        <Motion.ul initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.7, ease, delay: 0.15 }}
+          className="list-none m-0 p-0 flex flex-col gap-3">
+          {[
+            ['Question bank', 'Per-institution, reviewed, reusable across exams'],
+            ['Mission control', 'Live presence, progress, and time extensions'],
+            ['Integrity forensics', 'Anomalies plus chance-corrected similarity flags'],
+            ['Verifiable certificates', 'Issued in bulk, revocable, publicly checkable'],
+          ].map(([t, d], i) => (
+            <li key={t} className="rounded-xl px-5 py-4 flex items-baseline gap-4"
+              style={{ background: 'rgba(251,247,238,.05)', border: '1px solid rgba(251,247,238,.1)' }}>
+              <span aria-hidden="true" className="font-[Fraunces,serif] text-[15px] font-semibold" style={{ color: [GOLD_L, '#3FB6B0', '#E06B62', GOLD_L][i] }}>0{i + 1}</span>
+              <span>
+                <strong className="block text-[14.5px] mb-0.5" style={{ color: IVORY }}>{t}</strong>
+                <span className="text-[13px] leading-relaxed" style={{ color: 'rgba(251,247,238,.55)' }}>{d}</span>
+              </span>
+            </li>
+          ))}
+        </Motion.ul>
+      </div>
+    </section>
   )
 }
 
-function Wordmark() {
+/* ── Closing reframe ────────────────────────────────────── */
+
+function Reframe() {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, color: '#FDFBF5', letterSpacing: '-.2px' }}>
-        Matra
-      </span>
-      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-md)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
-        Assessment Platform
-      </span>
-    </div>
+    <section className="mx-auto max-w-4xl px-5 md:px-8 py-24 md:py-32 text-center">
+      <Motion.p
+        initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }} transition={{ duration: 0.9, ease }}
+        className="m-0 font-[Fraunces,serif] italic font-medium tracking-tight leading-[1.35] text-[clamp(24px,3.6vw,38px)]"
+        style={{ color: INK }}>
+        Examinations have always run on trust.<br />
+        <span style={{ background: `linear-gradient(110deg, ${TEAL}, ${GOLD} 60%, ${RED})`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+          Matra makes that trust checkable.
+        </span>
+      </Motion.p>
+    </section>
   )
 }
 
-function DoorCard({ to, kicker, title, desc, cta, primary }) {
+/* ── Atmosphere helpers ─────────────────────────────────── */
+
+function Grain() {
   return (
-    <Link to={to} className="door-card" style={{
-      display: 'flex', flexDirection: 'column', padding: 'var(--space-md)',
-      textDecoration: 'none', background: 'var(--surface)',
-      border: primary ? '1.5px solid var(--accent)' : '1px solid var(--border)',
-      borderTop: primary ? '3px solid var(--accent)' : '3px solid var(--blue)',
-      borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
-    }}>
-      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: primary ? 'var(--accent-deep)' : 'var(--blue-mid)', marginBottom: 6 }}>
-        {kicker}
-      </span>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', letterSpacing: '-.3px', marginBottom: 8 }}>
-        {title}
-      </span>
-      <p style={{ margin: '0 0 var(--space-sm)', fontSize: 14, color: 'var(--text-2)', lineHeight: 1.65, flex: 1 }}>
-        {desc}
-      </p>
-      <span style={{ fontSize: 14, fontWeight: 700, color: primary ? 'var(--accent-deep)' : 'var(--blue-mid)' }}>
-        {cta} <span aria-hidden="true">→</span>
-      </span>
-    </Link>
+    <div aria-hidden="true" className="absolute inset-0 opacity-[.05] mix-blend-multiply"
+      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")` }} />
   )
 }
 
-function StepCard({ n, to, title, desc }) {
+function LocalStyles() {
   return (
-    <Link to={to} className="card door-card" style={{ display: 'flex', gap: 'var(--space-xs)', padding: 'var(--space-sm)', textDecoration: 'none', alignItems: 'flex-start' }}>
-      <span aria-hidden="true" style={{
-        flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
-        background: 'var(--blue)', color: 'var(--accent-md)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700,
-      }}>{n}</span>
-      <span>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 3 }}>{title}</span>
-        <span style={{ display: 'block', fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6 }}>{desc}</span>
-      </span>
-    </Link>
+    <style>{`
+      @keyframes auraDrift {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(28px, -20px) scale(1.06); }
+      }
+      .aura { animation: auraDrift 14s ease-in-out infinite; }
+      .aura-2 { animation-duration: 18s; animation-delay: -6s; }
+      .aura-3 { animation-duration: 22s; animation-delay: -11s; }
+      @media (prefers-reduced-motion: reduce) {
+        .aura, .aura-2, .aura-3 { animation: none; }
+      }
+    `}</style>
   )
 }
-
-const footLink = { fontSize: 12, color: 'var(--text-2)', textDecoration: 'none', fontWeight: 600 }
