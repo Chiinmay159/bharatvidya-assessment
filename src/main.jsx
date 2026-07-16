@@ -7,10 +7,15 @@ import { registerSW } from 'virtual:pwa-register'
 
 initMonitoring()
 
-// App-shell service worker: reload-resilience on dead networks. Prompt mode
-// with no prompt — a new version applies on the next natural page load, so a
-// deploy can never force-reload a student mid-exam.
-registerSW({ immediate: true })
+// App-shell service worker: reload-resilience on dead networks. New versions
+// apply immediately EXCEPT inside a live exam — a deploy must never yank a
+// student mid-attempt; their client updates on the next natural navigation.
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    if (!window.location.pathname.startsWith('/exam')) updateSW(true)
+  },
+})
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
