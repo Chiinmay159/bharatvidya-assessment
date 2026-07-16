@@ -22,7 +22,7 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
   const {
     status, currentQuestion, currentIndex, totalQuestions,
     attemptId, result, error, pendingCount, unsavedCount, extraTimeMinutes,
-    submitAnswer, autoSubmit, retrySubmit, forceSubmit,
+    lateDeliveredCount, submitAnswer, autoSubmit, retrySubmit, forceSubmit,
   } = useExamState({ batch, rollNumber, studentName, email, accessCode, forceNewAttempt })
 
   const isLastQuestion = currentIndex === totalQuestions - 1
@@ -85,7 +85,9 @@ export function ExamScreen({ batch, rollNumber, studentName, email, accessCode, 
       /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [currentIndex])
-  useEffect(() => { if (status === 'submitted' && result) onComplete(result) }, [status, result, onComplete])
+  useEffect(() => {
+    if (status === 'submitted' && result) onComplete({ ...result, lateDeliveredCount })
+  }, [status, result, lateDeliveredCount, onComplete])
 
   // 3.1 Tab switch detection
   useEffect(() => {

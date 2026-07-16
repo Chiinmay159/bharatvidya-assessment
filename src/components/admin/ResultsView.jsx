@@ -11,6 +11,7 @@ import { ExportConfigModal } from './ExportConfigModal'
 import { EmailConfirmModal } from './EmailConfirmModal'
 import { ResetBatchModal } from './ResetBatchModal'
 import { DeleteAttemptModal } from './ResultsModals'
+import { LateAnswersPanel } from './LateAnswersPanel'
 
 /* ── Column definitions for configurable export (3.6) ─── */
 const BASE_COLUMNS = [
@@ -38,7 +39,7 @@ function saveExportConfig(config) {
   localStorage.setItem('bv_export_cols', JSON.stringify(config))
 }
 
-export function ResultsView({ batch, onBack, onViewAnalytics, onViewCertificates }) {
+export function ResultsView({ batch, canManage, onBack, onViewAnalytics, onViewCertificates }) {
   const [attempts,     setAttempts]     = useState([])
   const [questions,    setQuestions]    = useState([])
   const [responses,    setResponses]    = useState([])
@@ -329,6 +330,10 @@ export function ResultsView({ batch, onBack, onViewAnalytics, onViewCertificates
       )}
 
       {loading && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>Loading results&hellip;</div>}
+
+      {/* Post-deadline buffered answers awaiting operator review (029).
+          Accepting rescores the attempt, so the results reload after. */}
+      {!loading && <LateAnswersPanel batch={batch} canManage={canManage} onReviewed={fetchAll} />}
 
       {!loading && attempts.length === 0 && (
         <div className="card" style={{ padding: '48px 32px', textAlign: 'center' }}>

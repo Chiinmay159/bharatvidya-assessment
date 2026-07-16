@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { prefetchPaper } from '../../lib/paper'
+import { inAppBrowserName } from '../../lib/clientEnv'
 import { formatInTimeZone } from 'date-fns-tz'
 
 export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
@@ -102,6 +103,7 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
   }, [batch.id, batch.scheduled_start, checkAndTransition])
 
   const timeStr = formatInTimeZone(new Date(batch.scheduled_start), 'Asia/Kolkata', 'hh:mm a')
+  const inAppName = inAppBrowserName()
 
   return (
     <div style={{
@@ -110,6 +112,19 @@ export function WaitingRoom({ batch, rollNumber, studentName, onExamStarted }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '24px 20px',
     }}>
+      {/* In-app webviews get a fraction of normal storage on iOS and evict
+          aggressively — the paper cache and answer buffer are both at risk.
+          Advise (never block) moving to a real browser while there's time. */}
+      {inAppName && (
+        <div role="alert" style={{
+          width: '100%', maxWidth: 460, marginBottom: 12,
+          background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-sm)',
+          padding: '12px 16px', fontSize: 13, color: 'var(--warn)', lineHeight: 1.6,
+        }}>
+          <strong>You've opened this exam inside {inAppName}.</strong> For a stable exam, copy this
+          page's link and open it in Chrome or Safari before the exam starts.
+        </div>
+      )}
       <div className="card card-heritage u-slide-up" style={{ width: '100%', maxWidth: 460, padding: '40px 32px 32px', textAlign: 'center' }}>
 
         {/* Clock icon with breathing animation */}

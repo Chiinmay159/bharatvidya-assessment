@@ -5,7 +5,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, email, on
   const {
     score, total, percentage, alreadySubmitted,
     showResults = true, passPercentage, canRetry,
-    attemptNumber, maxAttempts,
+    attemptNumber, maxAttempts, lateDeliveredCount = 0,
   } = result || {}
 
   /* ── Already submitted (page refresh / re-entry) ────────── */
@@ -80,6 +80,7 @@ export function ResultScreen({ result, batch, rollNumber, studentName, email, on
           <p style={{ margin: 0, color: 'var(--text-3)', fontSize: 13, lineHeight: 1.65 }}>
             Results will be shared by your instructor.
           </p>
+          <LateNote count={lateDeliveredCount} />
           {attemptNumber > 1 && (
             <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
               Attempt {attemptNumber} of {maxAttempts}
@@ -188,6 +189,8 @@ export function ResultScreen({ result, batch, rollNumber, studentName, email, on
           <StatCell label="Total"     value={total ?? 0}                          color="var(--text-1)"  border />
         </div>
 
+        <LateNote count={lateDeliveredCount} />
+
         {/* Retry section */}
         {canRetry && (
           <div style={{ marginBottom: 20 }}>
@@ -212,6 +215,19 @@ function StatCell({ label, value, color, border }) {
     <div style={{ flex: 1, padding: '16px 12px', textAlign: 'center', borderLeft: border ? '1px solid var(--border)' : 'none' }}>
       <div style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1, marginBottom: 5 }}>{value}</div>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</div>
+    </div>
+  )
+}
+
+/** Shown when buffered answers arrived after the deadline and went to the
+    instructor's review queue instead of being scored automatically. */
+function LateNote({ count }) {
+  if (!count) return null
+  return (
+    <div style={{ background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-sm)', padding: '10px 14px', margin: '0 0 16px', fontSize: 13, color: 'var(--warn)', lineHeight: 1.6, textAlign: 'left' }}>
+      Your connection returned after the exam deadline. <strong>{count} answer{count !== 1 ? 's' : ''}</strong> saved
+      on this device {count !== 1 ? 'were' : 'was'} delivered to your instructor for review — they are not part of
+      the score shown and your instructor will decide whether to count them.
     </div>
   )
 }

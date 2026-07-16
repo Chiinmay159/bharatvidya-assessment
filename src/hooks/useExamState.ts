@@ -3,6 +3,10 @@ import { supabase } from '../lib/supabase'
 import { selectAndShuffleQuestions, type BankQuestion, type ShuffledQuestion } from '../lib/seed'
 import { formatDbError } from '../lib/errors'
 import { hasCachedPaper, getDecryptedPaper } from '../lib/paper'
+import {
+  bufferAnswer, markSynced, getUnsynced, nextSeq, clearAttempt,
+  requestPersistence, mergeBufferedAnswers,
+} from '../lib/answerBuffer'
 
 export type ExamStatus = 'loading' | 'ready' | 'submitting' | 'unsaved_warning' | 'submitted' | 'error'
 
@@ -59,6 +63,8 @@ export interface UseExamStateResult {
   unsavedCount: number
   /** Admin-granted time extension in minutes (0 if none), via exam_heartbeat */
   extraTimeMinutes: number
+  /** Answers delivered post-deadline to the operator's review queue */
+  lateDeliveredCount: number
   submitAnswer: (selectedLabel: string, isFinal?: boolean, timeSpentMs?: number | null) => Promise<void>
   autoSubmit: () => Promise<void>
   retrySubmit: () => Promise<void>
@@ -103,8 +109,11 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
   const [unsavedCount, setUnsavedCount] = useState(0)
   // Admin-granted extension (minutes), delivered via exam_heartbeat
   const [extraTimeMinutes, setExtraTimeMinutes] = useState(0)
+  // Answers delivered via the post-deadline mercy queue (operator review)
+  const [lateDeliveredCount, setLateDeliveredCount] = useState(0)
   const failedQueueRef = useRef<QueuedResponse[]>([]) // { questionId, originalLabel, attemptId }
   const sessionTokenRef = useRef<string | null>(null)
+  const deadlineHitRef = useRef(false) // a save was refused with 'exam time has ended'
 
   const batchId = batch?.id
 
@@ -231,6 +240,10 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       if (sessionErr) throw sessionErr
       sessionTokenRef.current = token as string
 
+      // Best-effort: exempt the answer buffer from storage eviction.
+      // Denial is normal (heuristic-based in Chrome/Safari) — never blocks.
+      requestPersistence()
+
       // 3. Get questions. Fast path (scale): decrypt the paper pre-fetched
       //    in the waiting room — only a tiny key RPC at start time.
       //    Fallback: direct get_exam_questions RPC (same server-side
@@ -256,18 +269,29 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       )
       setQuestions(shuffled)
 
-      // 5. Recover previous answers on refresh (ownership-verified)
+      // 5. Recover previous answers on refresh: server truth first, then
+      //    overlay unsynced answers from the local write-ahead buffer —
+      //    those never reached the server, so this device's copy is newer.
+      //    They re-enter the failed queue and drain on the next sync.
       if (existing && existing.length > 0 && !existing[0].submitted_at) {
         const { data: prevResponses } = await supabase.rpc('get_my_responses', {
           p_attempt_id:   currentAttemptId,
           p_roll_number:  rollNumber,
           p_email:        email,
         })
-        if (prevResponses?.length > 0) {
-          const map: Record<string, string> = {}
-          prevResponses.forEach((r: { question_id: string; selected_answer: string }) => { map[r.question_id] = r.selected_answer })
-          setAnsweredMap(map)
-          const answeredIds = new Set(prevResponses.map((r: { question_id: string }) => r.question_id))
+        const serverMap: Record<string, string> = {}
+        ;(prevResponses ?? []).forEach((r: { question_id: string; selected_answer: string }) => { serverMap[r.question_id] = r.selected_answer })
+        const validIds = new Set(shuffled.map(q => q.questionId))
+        const buffered = (await getUnsynced(currentAttemptId)).filter(b => validIds.has(b.questionId))
+        const { answeredMap: merged, queue } = mergeBufferedAnswers(serverMap, buffered)
+        if (Object.keys(merged).length > 0) {
+          setAnsweredMap(merged)
+          failedQueueRef.current = queue.map(b => ({
+            questionId: b.questionId, originalLabel: b.answer,
+            attemptId: currentAttemptId, timeSpent: b.timeSpentMs,
+          }))
+          setPendingCount(failedQueueRef.current.length)
+          const answeredIds = new Set(Object.keys(merged))
           const firstUnanswered = shuffled.findIndex(q => !answeredIds.has(q.questionId))
           setCurrentIndex(firstUnanswered === -1 ? shuffled.length - 1 : firstUnanswered)
         }
@@ -354,13 +378,17 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       if (!error) {
         failedQueueRef.current = []
         setPendingCount(0)
+        markSynced(queue[0].attemptId, queue.map(q => q.questionId))
         return
       }
       if (error.message?.includes('Invalid session')) return // keep queue; submit flow handles it
+      // Deadline passed — retrying save is futile; the late-buffer path takes over
+      if (error.message?.includes('exam time has ended')) { deadlineHitRef.current = true; return }
       // Other errors (e.g. RPC missing) → fall through to per-item path
     } catch { /* fall through to per-item path */ }
 
     const remaining: QueuedResponse[] = []
+    const syncedIds: string[] = []
     for (let i = 0; i < queue.length; i++) {
       const item = queue[i]
       try {
@@ -376,7 +404,14 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
             remaining.push(...queue.slice(i))
             break
           }
+          if (error.message?.includes('exam time has ended')) {
+            deadlineHitRef.current = true
+            remaining.push(...queue.slice(i))
+            break
+          }
           remaining.push(item)
+        } else {
+          syncedIds.push(item.questionId)
         }
       } catch {
         remaining.push(item)
@@ -384,6 +419,41 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     }
     failedQueueRef.current = remaining
     setPendingCount(remaining.length)
+    if (syncedIds.length > 0 && queue[0]) markSynced(queue[0].attemptId, syncedIds)
+  }, [])
+
+  /**
+   * Post-deadline delivery: answers the server refused as late go to the
+   * quarantine queue for operator review — never scored automatically,
+   * never silently lost. Session-token gated, 30-minute grace window.
+   */
+  const deliverLateBuffer = useCallback(async (): Promise<number> => {
+    const queue = [...failedQueueRef.current]
+    if (queue.length === 0 || !sessionTokenRef.current) return 0
+    try {
+      const buffered = await getUnsynced(queue[0].attemptId)
+      const savedAtById = new Map(buffered.map(b => [b.questionId, b] as const))
+      const { data, error } = await supabase.rpc('submit_late_buffer', {
+        p_attempt_id:    queue[0].attemptId,
+        p_session_token: sessionTokenRef.current,
+        p_responses:     queue.map(q => ({
+          question_id:     q.questionId,
+          selected_answer: q.originalLabel,
+          time_spent_ms:   q.timeSpent ?? null,
+          client_seq:      savedAtById.get(q.questionId)?.seq ?? null,
+          client_saved_at: savedAtById.get(q.questionId)?.savedAt ?? null,
+        })),
+      })
+      if (error) return 0
+      failedQueueRef.current = []
+      setPendingCount(0)
+      markSynced(queue[0].attemptId, queue.map(q => q.questionId))
+      const n = typeof data === 'number' ? data : queue.length
+      setLateDeliveredCount(n)
+      return n
+    } catch {
+      return 0
+    }
   }, [])
 
   const finalizeSubmission = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
@@ -397,6 +467,12 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         await drainFailedQueue()
       }
 
+      // Deadline already passed for saves — retrying is futile. Route the
+      // remainder to the mercy queue and continue to submission.
+      if (failedQueueRef.current.length > 0 && deadlineHitRef.current) {
+        await deliverLateBuffer()
+      }
+
       const unsaved = failedQueueRef.current.length
       if (unsaved > 0 && !force) {
         // Let the student decide: retry or submit with missing answers
@@ -406,6 +482,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       }
       if (unsaved > 0) {
         console.warn(`Force-submitting with ${unsaved} unsaved answer(s)`)
+        await deliverLateBuffer() // last-resort attempt even pre-deadline flag
       }
 
       const { data, error } = await supabase.rpc('submit_exam', {
@@ -429,12 +506,13 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
         canRetry: row.can_retry,
       })
       setStatus('submitted')
+      clearAttempt(attemptId) // buffer hygiene — server holds the truth now
     } catch (err) {
       console.error('Submission error:', err)
       setStatus('error')
       setError(formatDbError(err as ErrorLike, 'Submission failed. Please contact the invigilator.'))
     }
-  }, [attemptId, drainFailedQueue])
+  }, [attemptId, drainFailedQueue, deliverLateBuffer])
 
   /**
    * Submit a single response and advance.
@@ -449,6 +527,14 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     const timeSpent = Number.isFinite(timeSpentMs) ? Math.round(timeSpentMs as number) : null
 
     setAnsweredMap(prev => ({ ...prev, [question.questionId]: originalLabel }))
+
+    // Write-ahead: persist locally BEFORE the network attempt, so a reload
+    // or crash mid-save never loses the selection. Best-effort — never throws.
+    const seq = await nextSeq(attemptId)
+    await bufferAnswer({
+      attemptId, questionId: question.questionId, answer: originalLabel,
+      timeSpentMs: timeSpent, seq, savedAt: Date.now(),
+    })
 
     /** Save via RPC with session-token validation. Retries on transient errors. */
     async function saveWithRetry(questionId: string, answer: string, retries = 3): Promise<void> {
@@ -477,6 +563,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
 
     try {
       await saveWithRetry(question.questionId, originalLabel)
+      markSynced(attemptId, [question.questionId])
     } catch (err) {
       // Session conflict = hard stop — lock the student out immediately
       if ((err as ErrorLike)?.message?.includes('Invalid session')) {
@@ -496,6 +583,22 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
       setCurrentIndex(i => i + 1)
     }
   }, [questions, currentIndex, attemptId, finalizeSubmission])
+
+  // Reconnect drain: queued answers should not wait for submission time.
+  // Fires on the browser's online event and on a slow interval while
+  // anything is pending — each pass is one batch RPC, so this stays cheap
+  // even at cohort scale (only students WITH pending answers poll).
+  useEffect(() => {
+    if (status !== 'ready' && status !== 'unsaved_warning') return
+    if (pendingCount === 0) return
+    const drain = () => { drainFailedQueue() }
+    window.addEventListener('online', drain)
+    const interval = setInterval(drain, 20_000)
+    return () => {
+      window.removeEventListener('online', drain)
+      clearInterval(interval)
+    }
+  }, [status, pendingCount, drainFailedQueue])
 
   /**
    * Auto-submit on timer expiry — always forces even with unsaved answers.
@@ -526,6 +629,7 @@ export function useExamState({ batch, rollNumber, studentName, email, accessCode
     pendingCount,
     unsavedCount,
     extraTimeMinutes,
+    lateDeliveredCount,
     submitAnswer,
     autoSubmit,
     retrySubmit,
