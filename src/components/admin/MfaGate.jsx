@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
    mode 'verify' — factor already enrolled: verify a code to reach aal2. */
 export function MfaGate({ mode, onVerified, onSignOut }) {
   const [qr, setQr]             = useState(null)
+  const [otpUri, setOtpUri]     = useState(null)
   const [secret, setSecret]     = useState(null)
   const [factorId, setFactorId] = useState(null)
   const [code, setCode]         = useState('')
@@ -34,6 +35,7 @@ export function MfaGate({ mode, onVerified, onSignOut }) {
           })
           if (enrollErr) throw enrollErr
           setQr(data.totp.qr_code)
+          setOtpUri(data.totp.uri)
           setSecret(data.totp.secret)
           setFactorId(data.id)
         } else {
@@ -101,9 +103,22 @@ export function MfaGate({ mode, onVerified, onSignOut }) {
             {mode === 'enroll' && qr && (
               <div style={{ marginBottom: 20 }}>
                 <img src={qr} alt="TOTP enrollment QR code" style={{ width: 168, height: 168, margin: '0 auto 10px', display: 'block', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: '#fff', padding: 8 }} />
+                {otpUri && (
+                  <a
+                    href={otpUri}
+                    style={{
+                      display: 'inline-block', margin: '0 0 10px', padding: '9px 16px',
+                      border: '1.5px solid var(--accent-md)', borderRadius: 'var(--radius-sm)',
+                      fontSize: 13, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none',
+                    }}
+                  >
+                    On this phone? Open your authenticator app →
+                  </a>
+                )}
                 {secret && (
                   <p style={{ margin: 0, fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
-                    Can’t scan? Enter this key manually:<br />
+                    On a computer? Scan the code with Google Authenticator on your phone.<br />
+                    Or enter this key manually:{' '}
                     <code style={{ fontSize: 11, userSelect: 'all', wordBreak: 'break-all' }}>{secret}</code>
                   </p>
                 )}
