@@ -39,6 +39,17 @@ Deno.serve(async (req) => {
   if (userErr || !userData?.user?.email) return json({ error: 'Invalid session' }, 401)
   const callerEmail = userData.user.email.toLowerCase()
 
+  // MFA enforcement (migration 027): this function authorizes via a direct
+  // admin_users read rather than is_admin(), so it must apply the same aal2
+  // bar itself. getUser() above already validated the token's signature —
+  // this only reads a claim from that validated token.
+  let aal = ''
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    aal = String(payload.aal ?? '')
+  } catch { /* malformed payload → aal stays '', rejected below */ }
+  if (aal !== 'aal2') return json({ error: 'MFA-verified session required' }, 403)
+
   const { data: callerRow } = await admin
     .from('admin_users').select('role, organization_id').eq('email', callerEmail).maybeSingle()
   if (!callerRow || callerRow.role !== 'owner') return json({ error: 'Owner role required' }, 403)

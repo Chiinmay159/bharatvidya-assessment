@@ -1,6 +1,6 @@
 # BharatVidya Assessment Platform
 
-See [PRODUCT-DOCUMENT.md](./PRODUCT-DOCUMENT.md) for the full product document, feature set, UX spec, architecture, and security model.
+See [bharatvidya-assessment-product-doc.md](./bharatvidya-assessment-product-doc.md) for the full product document, feature set, UX spec, architecture, and security model.
 
 Online exam tool for BharatVidya. Supports rostered/open batches, timed MCQ exams, live proctoring signals (tab-switch tracking), admin dashboard with results analytics, and roster-gated entry.
 
@@ -74,7 +74,7 @@ supabase/
 ## Security model
 
 - **Students** connect as Supabase `anon` role. RLS policies restrict access to active/scheduled batch data only. Roster data is never exposed directly; students verify identity via `verify_roster_entry` RPC.
-- **Admin** authenticates via Google OAuth. All admin operations require `is_admin()` (checks JWT email). Admin-only RPCs (`replace_questions`, `replace_roster`) include server-side `is_admin()` guards inside SECURITY DEFINER functions.
+- **Admin** authenticates via Google OAuth or email+password, and must complete TOTP MFA: since migration 027, `is_admin()` and `admin_role()` require an `aal2` session, so a password or OAuth login alone opens nothing. All admin operations require `is_admin()` (checks `admin_users` membership + `aal2`). Admin-only RPCs (`replace_questions`, `replace_roster`) include server-side `is_admin()` guards inside SECURITY DEFINER functions.
 - **Edge functions** verify JWT + admin status before executing.
 - All RPCs have explicit `REVOKE ALL / GRANT EXECUTE` to prevent unintended access.
 

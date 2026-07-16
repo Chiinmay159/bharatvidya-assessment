@@ -17,6 +17,7 @@ import { StudentsView }     from '../components/admin/StudentsView'
 import { TeamView }         from '../components/admin/TeamView'
 import { SeriesView }       from '../components/admin/SeriesView'
 import { InsightsView }     from '../components/admin/InsightsView'
+import { MfaGate }          from '../components/admin/MfaGate'
 
 // Views: 'dashboard' | 'batches' | 'create-batch' | 'edit-batch' | 'bulk-create'
 //        'questions' | 'roster' | 'results' | 'activity-log'
@@ -32,6 +33,7 @@ export function AdminPage() {
   const [pwEmail,       setPwEmail]       = useState('')
   const [pwPass,        setPwPass]        = useState('')
   const [signingIn,     setSigningIn]     = useState(false)
+  const [mfaGate,       setMfaGate]       = useState(null) // null | 'enroll' | 'verify'
 
   // Tenant-aware header + role gating for the UI.
   useEffect(() => {
@@ -60,17 +62,34 @@ export function AdminPage() {
 
   useEffect(() => {
     // Authorization is role-based (admin_users table) — checked server-side
-    // via is_admin(). RLS enforces the real boundary; this gate is UX.
+    // via is_admin(), which since migration 027 also requires an aal2 (MFA)
+    // session. RLS enforces the real boundary; this gate is UX. The AAL check
+    // must run before is_admin(): a fresh login sits at aal1, where is_admin()
+    // is false by design, and the user needs a path to enroll or verify TOTP.
     async function vetUser(u) {
-      if (!u) { setUser(null); return }
+      if (!u) { setUser(null); setMfaGate(null); return }
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (aal?.currentLevel !== 'aal2') {
+        if (aal?.nextLevel === 'aal2') {
+          // TOTP factor already enrolled — this session needs a code
+          setMfaGate('verify'); setUser(null); return
+        }
+        const { data: member } = await supabase.rpc('is_admin_member')
+        if (!member) {
+          supabase.auth.signOut()
+          setAuthError('Access denied. This account is not an authorized admin.')
+          setUser(null); setMfaGate(null); return
+        }
+        setMfaGate('enroll'); setUser(null); return
+      }
       const { data: isAdmin } = await supabase.rpc('is_admin')
       if (!isAdmin) {
         supabase.auth.signOut()
         setAuthError('Access denied. This account is not an authorized admin.')
-        setUser(null)
-        return
+        setUser(null); setMfaGate(null); return
       }
       setAuthError(null)
+      setMfaGate(null)
       setUser(u)
     }
 
@@ -110,6 +129,18 @@ export function AdminPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-gray-500 text-sm">Loading...</div>
       </div>
+    )
+  }
+
+  if (mfaGate) {
+    return (
+      <MfaGate
+        mode={mfaGate}
+        // mfa.verify() updates the session and fires onAuthStateChange, which
+        // re-runs vetUser at aal2; the refresh is a deterministic fallback.
+        onVerified={() => supabase.auth.refreshSession()}
+        onSignOut={() => { setMfaGate(null); supabase.auth.signOut() }}
+      />
     )
   }
 
