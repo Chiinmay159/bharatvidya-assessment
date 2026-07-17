@@ -87,6 +87,8 @@
 --      grace) + review_late_response (admin accept/reject with rescore
 --      and audit); deadline stays authoritative, nothing scored
 --      automatically
+--  30. pin_function_search_path (2026-07-16) — SET search_path = public
+--      on the last 8 trigger/helper functions (security audit hardening)
 --
 -- Minimum frontend version: commit after 029 migration
 --
@@ -2674,3 +2676,15 @@ CREATE EVENT TRIGGER ensure_rls
   ON ddl_command_end
   WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
   EXECUTE FUNCTION public.rls_auto_enable();
+
+-- ----------------------------------------------------------------
+-- Pinned search_path on trigger/helper functions (030, audit hardening)
+-- ----------------------------------------------------------------
+ALTER FUNCTION public.protect_active_batch()            SET search_path = public;
+ALTER FUNCTION public.bank_question_workflow()          SET search_path = public;
+ALTER FUNCTION public.gen_exam_code()                   SET search_path = public;
+ALTER FUNCTION public.batches_autocode()                SET search_path = public;
+ALTER FUNCTION public.get_server_time()                 SET search_path = public;
+ALTER FUNCTION public.restrict_attempt_update_columns() SET search_path = public;
+ALTER FUNCTION public.gen_certificate_code()            SET search_path = public;
+ALTER FUNCTION public.client_ip()                       SET search_path = public;
