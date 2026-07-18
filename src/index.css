@@ -492,6 +492,9 @@ h1, h2 {
   .hero-title { font-size: 24px !important; }
   .batch-card-inner { padding: 14px 16px 12px !important; }
   .form-input { font-size: 16px !important; }
+  /* The exam-code gate input is the subject of its frame — it keeps its
+     display scale (≥16px, so the iOS zoom-on-focus guard still holds). */
+  input#exam-code.form-input { font-size: 24px !important; }
 
   .exam-header-row {
     flex-direction: column !important;
