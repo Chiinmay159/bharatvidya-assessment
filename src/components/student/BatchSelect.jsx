@@ -69,57 +69,66 @@ export function BatchSelect({ onSelectBatch }) {
     onSelectBatch({ ...batch, org: orgs[batch.organization_id] ?? null })
   }
 
+  /* The first viewport is composed as a single frame: the carbon field is
+     the top half, the ivory ground the bottom, and the code card rides the
+     horizon. The card anchors to the hero's bottom edge with
+     translateY(50%), so its centerline sits ON the 50vh seam by
+     construction — at every viewport, even when the error line grows it.
+     Everything sits on one center axis. */
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Hero ──────────────────────────────────────────── */}
-      <div style={{ background: 'var(--gradient-hero)', padding: '32px 24px 56px' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          {/* Brand bar — platform identity until an institution's exam is chosen */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 36 }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'rgba(253,251,245,.9)', fontSize: 17, letterSpacing: '-.2px' }}>
-              Matra
-            </span>
-            <span style={{ fontWeight: 600, color: 'rgba(253,251,245,.5)', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase' }}>
-              Assessment Platform
-            </span>
-          </div>
-          <h1 className="hero-title" style={{ margin: 0, fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#FDFBF5', letterSpacing: '-.6px', lineHeight: 1.15 }}>
+      {/* ── Upper half — carbon field ─────────────────────── */}
+      <div style={{ background: 'var(--gradient-hero)', height: '50vh', minHeight: 360, display: 'flex', flexDirection: 'column', padding: '28px 24px 0', position: 'relative' }}>
+        {/* Brand — centered on the frame's axis */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'rgba(251,247,238,.92)', fontSize: 17, letterSpacing: '-.2px' }}>
+            Matra
+          </span>
+          <span style={{ fontWeight: 600, color: 'rgba(251,247,238,.5)', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase' }}>
+            Assessment Platform
+          </span>
+        </div>
+        {/* Headline — optically centered in the carbon visible above the card */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', paddingBottom: 96 }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(36px, 5.5vw, 54px)', fontWeight: 600, fontFamily: 'var(--font-display)', color: '#FBF7EE', letterSpacing: '-.8px', lineHeight: 1.06, textWrap: 'balance' }}>
             Find your exam
           </h1>
+          <p style={{ margin: '14px 0 0', fontSize: 'clamp(14px, 1.6vw, 17px)', color: 'rgba(251,247,238,.65)', lineHeight: 1.6, maxWidth: 460 }}>
+            Enter the exam code shared by your college or institution.
+          </p>
+        </div>
+
+        {/* Code gate — centerline on the seam by construction */}
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, transform: 'translateY(50%)', padding: '0 20px', display: 'flex', justifyContent: 'center', zIndex: 1 }}>
+          <form onSubmit={handleCodeSubmit} className="card card-heritage" style={{ width: '100%', maxWidth: 520, padding: '28px 28px 24px', boxShadow: 'var(--shadow-xl)' }}>
+            <label htmlFor="exam-code" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 10, textAlign: 'center' }}>
+              Exam code
+            </label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input
+                id="exam-code"
+                type="text"
+                value={code}
+                onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError(null) }}
+                placeholder="K7NM4P"
+                autoComplete="off"
+                className="form-input"
+                style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.22em', fontSize: 24, fontWeight: 600, textTransform: 'uppercase', textAlign: 'center', padding: '14px 16px' }}
+              />
+              <button type="submit" disabled={looking || !code.trim()} className="btn btn-primary" style={{ padding: '14px 28px', fontSize: 15, flexShrink: 0 }}>
+                {looking ? <Spinner size={15} /> : 'Find'}
+              </button>
+            </div>
+            {codeError && (
+              <p role="alert" style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--error)', lineHeight: 1.5, textAlign: 'center' }}>{codeError}</p>
+            )}
+          </form>
         </div>
       </div>
 
-      {/* ── Body ──────────────────────────────────────────── */}
-      <main id="main-content" tabIndex={-1} style={{ flex: 1, maxWidth: 640, width: '100%', margin: '0 auto', padding: '0 20px 60px', outline: 'none' }}>
-
-        {/* Code gate — overlaps hero */}
-        <form onSubmit={handleCodeSubmit} className="card card-heritage" style={{ marginTop: -28, padding: '20px', marginBottom: 24, boxShadow: 'var(--shadow-md)' }}>
-          <label htmlFor="exam-code" style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 8 }}>
-            Exam code
-          </label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              id="exam-code"
-              type="text"
-              value={code}
-              onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError(null) }}
-              placeholder="e.g. K7NM4P"
-              autoComplete="off"
-              className="form-input"
-              style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.14em', fontSize: 17, textTransform: 'uppercase' }}
-            />
-            <button type="submit" disabled={looking || !code.trim()} className="btn btn-primary" style={{ padding: '11px 22px', flexShrink: 0 }}>
-              {looking ? <Spinner size={15} /> : 'Find'}
-            </button>
-          </div>
-          {codeError && (
-            <p role="alert" style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--error)', lineHeight: 1.5 }}>{codeError}</p>
-          )}
-          <p style={{ margin: '10px 0 0', fontSize: 13, fontWeight: 700, color: 'var(--text-2)', lineHeight: 1.55 }}>
-            Use the 8-character exam code shared by your college/institution.
-          </p>
-        </form>
+      {/* ── Body — lists flow below the framed viewport ───── */}
+      <main id="main-content" tabIndex={-1} style={{ flex: 1, maxWidth: 560, width: '100%', margin: '0 auto', padding: '124px 20px 64px', outline: 'none' }}>
 
         {/* Found exam */}
         {found && (
