@@ -8,6 +8,8 @@
 //                   AND upserts the admin_users row (one step, from the app)
 //   set_password  {email, password}    → reset a password
 //   deprovision   {email}              → delete the auth user (full cleanup)
+//   reset_mfa     {email}              → remove ALL MFA factors so a locked-out
+//                                        admin can re-enroll at next sign-in
 //
 // CORS is restricted to the production origin.
 
@@ -127,6 +129,25 @@ Deno.serve(async (req) => {
       if (id) await admin.auth.admin.deleteUser(id)           // remove auth user if any
       await admin.from('admin_users').delete().eq('email', email)  // remove admin grant
       return json({ ok: true })
+    }
+
+    if (action === 'reset_mfa') {
+      // Self-reset is allowed on purpose: an owner with a live aal2 session
+      // (e.g. desktop) can clear a lost phone's factor without SQL surgery.
+      const { data: tgt } = await admin.from('admin_users').select('organization_id').eq('email', email).maybeSingle()
+      if (!tgt) return json({ error: 'Not an admin account' }, 404)
+      if (!orgAllowed(tgt.organization_id)) return json({ error: 'Out of scope' }, 403)
+      const id = await findUserId(email)
+      if (!id) return json({ error: 'No sign-in account exists for this email yet' }, 404)
+      const { data: fData, error: fErr } = await admin.auth.admin.mfa.listFactors({ userId: id })
+      if (fErr) return json({ error: fErr.message }, 400)
+      const factors = fData?.factors ?? []
+      for (const f of factors) {
+        // Deleting a verified factor also revokes the user's active sessions.
+        const { error } = await admin.auth.admin.mfa.deleteFactor({ id: f.id, userId: id })
+        if (error) return json({ error: error.message }, 400)
+      }
+      return json({ ok: true, removed: factors.length })
     }
 
     return json({ error: 'Unknown action' }, 400)

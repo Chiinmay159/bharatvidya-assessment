@@ -34,6 +34,7 @@ export function AdminPage() {
   const [pwPass,        setPwPass]        = useState('')
   const [signingIn,     setSigningIn]     = useState(false)
   const [mfaGate,       setMfaGate]       = useState(null) // null | 'enroll' | 'verify'
+  const [mfaEmail,      setMfaEmail]      = useState(null) // email shown on the MFA gate
 
   // Tenant-aware header + role gating for the UI.
   useEffect(() => {
@@ -67,7 +68,11 @@ export function AdminPage() {
     // must run before is_admin(): a fresh login sits at aal1, where is_admin()
     // is false by design, and the user needs a path to enroll or verify TOTP.
     async function vetUser(u) {
-      if (!u) { setUser(null); setMfaGate(null); return }
+      if (!u) { setUser(null); setMfaGate(null); setMfaEmail(null); return }
+      // Naming the signed-in email in the denial matters here: people often
+      // hold multiple Google accounts and don't realize which one OAuth used.
+      const denied = `Access denied. ${u.email} is not an authorized admin account. If your admin access is under a different email, sign in with that account.`
+      setMfaEmail(u.email)
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
       if (aal?.currentLevel !== 'aal2') {
         if (aal?.nextLevel === 'aal2') {
@@ -77,7 +82,7 @@ export function AdminPage() {
         const { data: member } = await supabase.rpc('is_admin_member')
         if (!member) {
           supabase.auth.signOut()
-          setAuthError('Access denied. This account is not an authorized admin.')
+          setAuthError(denied)
           setUser(null); setMfaGate(null); return
         }
         setMfaGate('enroll'); setUser(null); return
@@ -85,7 +90,7 @@ export function AdminPage() {
       const { data: isAdmin } = await supabase.rpc('is_admin')
       if (!isAdmin) {
         supabase.auth.signOut()
-        setAuthError('Access denied. This account is not an authorized admin.')
+        setAuthError(denied)
         setUser(null); setMfaGate(null); return
       }
       setAuthError(null)
@@ -109,7 +114,10 @@ export function AdminPage() {
     setAuthError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.href },
+      // select_account: always show Google's account chooser. Admins often
+      // carry personal + work Google accounts in one browser — a silent
+      // sign-in with whichever is active strands them at "Access denied".
+      options: { redirectTo: window.location.href, queryParams: { prompt: 'select_account' } },
     })
     if (error) setAuthError(error.message)
   }
@@ -136,6 +144,7 @@ export function AdminPage() {
     return (
       <MfaGate
         mode={mfaGate}
+        userEmail={mfaEmail}
         // mfa.verify() updates the session and fires onAuthStateChange, which
         // re-runs vetUser at aal2; the refresh is a deterministic fallback.
         onVerified={() => supabase.auth.refreshSession()}

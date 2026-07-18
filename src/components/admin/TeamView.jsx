@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatDbError } from '../../lib/errors'
 import { Spinner } from '../shared/Spinner'
+import { MfaFactorsCard } from './MfaFactorsCard'
 
 const ROLES = [
   { value: 'owner',       label: 'Owner',       desc: 'Everything, incl. managing this team and deleting data' },
@@ -109,6 +110,20 @@ export function TeamView({ userEmail }) {
     else load()
   }
 
+  async function resetMfa(admin) {
+    if (!window.confirm(
+      `Reset two-factor authentication for ${admin.email}?\n\nAll their enrolled authenticators stop working and their sessions are signed out. They'll set up a fresh authenticator at next sign-in.`
+    )) return
+    setError(null); setNotice(null)
+    const { data, error: err } = await supabase.functions.invoke('manage-admin', {
+      body: { action: 'reset_mfa', email: admin.email },
+    })
+    if (err || data?.error) { setError(data?.error || 'Could not reset MFA.'); return }
+    setNotice(data.removed === 0
+      ? `${admin.email} had no authenticators enrolled — nothing to reset.`
+      : `MFA reset for ${admin.email}. They'll enroll a new authenticator at next sign-in.`)
+  }
+
   async function removeAdmin(admin) {
     if (!window.confirm(`Remove ${admin.email}? They will immediately lose admin access (and any password login is deleted).`)) return
     setError(null); setNotice(null)
@@ -150,6 +165,9 @@ export function TeamView({ userEmail }) {
       {!isOwner && (
         <Banner kind="warn">You are signed in as <strong>{myRole}</strong> — this screen is read-only. Only owners can manage the team.</Banner>
       )}
+
+      {/* ── Your own authenticators (any role) ── */}
+      <MfaFactorsCard />
 
       {/* ── Organisations ── */}
       <section style={{ marginBottom: 28 }}>
@@ -203,6 +221,9 @@ export function TeamView({ userEmail }) {
                     </select>
                     <button onClick={() => setPassword(a)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }} title="Create or reset a password for this account">
                       Set password
+                    </button>
+                    <button onClick={() => resetMfa(a)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12, flexShrink: 0 }} title="Remove their authenticators so they can enroll again — for lost phones">
+                      Reset MFA
                     </button>
                     <button onClick={() => removeAdmin(a)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12, color: 'var(--error)', flexShrink: 0 }}>
                       Remove
