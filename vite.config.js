@@ -5,6 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // SPA entry is app.html (not index.html) so the root "/" has no default
+  // index for Vercel to serve — that lets the "/" -> /home.html rewrite (the
+  // redesigned static landing) resolve cleanly at the root URL.
+  build: { rollupOptions: { input: 'app.html' } },
   plugins: [
     react(),
     tailwindcss(),
@@ -20,7 +24,7 @@ export default defineConfig({
         // Don't precache the redesigned landing — it's a large, network-served
         // static page (public/home.html), not part of the SPA app shell.
         globIgnores: ['**/home.html'],
-        navigateFallback: '/index.html',
+        navigateFallback: '/app.html',
         // The SPA fallback must NOT shadow the static landing: "/" and
         // "/home.html" navigations go to the network (Vercel serves home.html);
         // everything else keeps the offline app-shell fallback.

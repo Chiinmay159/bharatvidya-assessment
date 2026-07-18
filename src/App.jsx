@@ -15,7 +15,7 @@ const AdminPage = lazy(() =>
 // or the "*" fallback), do a full load so the real landing renders — never the
 // retired React component.
 function HomeRedirect() {
-  useEffect(() => { window.location.replace('/home.html') }, [])
+  useEffect(() => { window.location.replace('/') }, [])
   return null
 }
 
