@@ -71,14 +71,18 @@
   --maroon-mid:    var(--red);
   --maroon-lt:     var(--red-lt);
 
-  /* Semantic — muted, not neon */
+  /* Semantic — muted, not neon (each family: text / light bg / border tint) */
   --success:       #2D6A4F;
   --success-deep:  #1B4332;
   --success-lt:    #F0F7F4;
+  --success-md:    #BAD8CB;
   --error:         #B91C1C;
   --error-lt:      #FEF2F2;
+  --error-md:      #F2C4C4;
   --warn:          #92400E;
   --warn-lt:       #FFF8EB;
+  --warn-md:       #EFDCA8;
+  --teal-md:       #B7D6D6;
 
   /* Signature — the landing's gold→teal→red rule */
   --signature-rule: linear-gradient(90deg, #C9A227 0%, #E8C55B 30%, #0F7B7C 68%, #A62B25 100%);

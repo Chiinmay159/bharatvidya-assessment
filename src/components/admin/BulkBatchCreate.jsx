@@ -123,12 +123,12 @@ export function BulkBatchCreate({ onBack, onCreated }) {
 
       {/* Alerts */}
       {error && (
-        <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16 }}>
+        <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 8, padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16 }}>
           {error}
         </div>
       )}
       {success && (
-        <div style={{ background: 'var(--success-lt)', border: '1px solid #A7F3D0', borderRadius: 8, padding: '10px 14px', color: 'var(--success)', fontSize: 13, marginBottom: 16 }}>
+        <div style={{ background: 'var(--success-lt)', border: '1px solid var(--success-md)', borderRadius: 8, padding: '10px 14px', color: 'var(--success)', fontSize: 13, marginBottom: 16 }}>
           {success}
         </div>
       )}

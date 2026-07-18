@@ -112,7 +112,7 @@ export function AdminDashboard({ canManage = true, onViewAllBatches, onCreateBat
           label="Active now"
           color="var(--success)"
           bg="var(--success-lt)"
-          border="#A7F3D0"
+          border="var(--success-md)"
           icon={<ActiveIcon />}
         />
         <StatCard
@@ -126,9 +126,9 @@ export function AdminDashboard({ canManage = true, onViewAllBatches, onCreateBat
         <StatCard
           value={completed.length}
           label="Recently completed"
-          color="#7C3AED"
-          bg="#F5F3FF"
-          border="#DDD6FE"
+          color="var(--accent-deep)"
+          bg="var(--accent-lt)"
+          border="var(--accent-md)"
           icon={<CheckIcon />}
         />
       </div>
@@ -219,7 +219,7 @@ export function AdminDashboard({ canManage = true, onViewAllBatches, onCreateBat
       </Section>
 
       {/* ── Recently Completed ───────────────────────────── */}
-      <Section title="Recently Completed" count={completed.length} countColor="#7C3AED">
+      <Section title="Recently Completed" count={completed.length} countColor="var(--accent-deep)">
         {completed.length === 0 ? (
           <EmptyCard icon={<CheckIcon />} text="No completed exams yet." />
         ) : (

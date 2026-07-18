@@ -138,7 +138,7 @@ export function MfaGate({ mode, userEmail, onVerified, onSignOut }) {
         </p>
 
         {error && (
-          <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16, textAlign: 'left', lineHeight: 1.5 }}>
+          <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16, textAlign: 'left', lineHeight: 1.5 }}>
             {error}
           </div>
         )}
@@ -178,7 +178,7 @@ export function MfaGate({ mode, userEmail, onVerified, onSignOut }) {
                     <code style={{ fontSize: 11, userSelect: 'all', wordBreak: 'break-all' }}>{secret}</code>
                   </p>
                 )}
-                <p style={{ margin: 0, fontSize: 11, color: 'var(--warn, #92400E)', background: 'var(--warn-lt, #FEF3C7)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 10px', lineHeight: 1.6, textAlign: 'left' }}>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--warn)', background: 'var(--warn-lt, var(--warn-lt))', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 10px', lineHeight: 1.6, textAlign: 'left' }}>
                   Already have a BharatVidya entry in your app from an earlier attempt? Delete it — only codes from <strong>this</strong> QR will work.
                 </p>
               </div>

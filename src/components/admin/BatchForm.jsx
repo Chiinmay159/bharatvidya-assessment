@@ -114,7 +114,7 @@ export function BatchForm({ batch, onSaved, onCancel }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
         {locked && (
-          <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 'var(--radius-md)', padding: '10px 14px', color: '#9A3412', fontSize: 13, lineHeight: 1.5 }}>
+          <div style={{ background: 'var(--warn-lt)', border: '1px solid var(--warn-md)', borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--warn)', fontSize: 13, lineHeight: 1.5 }}>
             This batch is <strong>{batch?.status}</strong>. Most settings are locked to prevent mid-exam changes.
             {batch?.status !== 'completed' && ' You can still toggle result visibility.'}
           </div>
@@ -291,7 +291,7 @@ export function BatchForm({ batch, onSaved, onCancel }) {
         )}
 
         {error && (
-          <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--error)', fontSize: 13 }}>
+          <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--error)', fontSize: 13 }}>
             {error}
           </div>
         )}
@@ -384,4 +384,4 @@ const btnSecondary = {
   border: '1px solid var(--border-md)', color: 'var(--text-2)',
   fontSize: 14, fontWeight: 500,
 }
-const lockedStyle = { opacity: 0.5, cursor: 'not-allowed', background: '#F8FAFC' }
+const lockedStyle = { opacity: 0.5, cursor: 'not-allowed', background: 'var(--surface-2)' }

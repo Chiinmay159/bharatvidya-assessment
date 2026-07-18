@@ -125,7 +125,7 @@ export function QuestionUpload({ batch, onBack }) {
 
       {/* Parse errors */}
       {parseErrors.length > 0 && (
-        <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 8, padding: '16px', marginBottom: 20 }}>
+        <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 8, padding: '16px', marginBottom: 20 }}>
           <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--error)', fontSize: 13 }}>CSV errors — fix these and re-upload:</p>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {parseErrors.map((e, i) => <li key={i} style={{ fontSize: 12, color: 'var(--error)', marginBottom: 2 }}>{e}</li>)}
@@ -139,7 +139,7 @@ export function QuestionUpload({ batch, onBack }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{preview.length} questions parsed</span>
             {warnPreview && (
-              <span style={{ fontSize: 12, color: 'var(--warn)', background: 'var(--warn-lt)', padding: '3px 8px', borderRadius: 6, border: '1px solid #FDE68A' }}>
+              <span style={{ fontSize: 12, color: 'var(--warn)', background: 'var(--warn-lt)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--warn-md)' }}>
                 Warning: per-student count ({batch.questions_per_student}) exceeds bank size ({preview.length})
               </span>
             )}
@@ -196,9 +196,9 @@ export function QuestionUpload({ batch, onBack }) {
 
 function Alert({ type, text }) {
   const styles = {
-    success: { bg: 'var(--success-lt)', border: '#A7F3D0', color: 'var(--success)' },
-    warn:    { bg: 'var(--warn-lt)', border: '#FDE68A', color: 'var(--warn)' },
-    error:   { bg: 'var(--error-lt)', border: '#FECACA', color: 'var(--error)' },
+    success: { bg: 'var(--success-lt)', border: 'var(--success-md)', color: 'var(--success)' },
+    warn:    { bg: 'var(--warn-lt)', border: 'var(--warn-md)', color: 'var(--warn)' },
+    error:   { bg: 'var(--error-lt)', border: 'var(--error-md)', color: 'var(--error)' },
   }
   const s = styles[type]
   return (

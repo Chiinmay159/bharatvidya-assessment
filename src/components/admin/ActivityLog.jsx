@@ -15,15 +15,15 @@ const ACTION_LABELS = {
 }
 
 const ACTION_COLORS = {
-  status_changed:       { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
-  batch_cloned:         { bg: '#F0FDF4', color: '#16A34A', border: '#BBF7D0' },
-  bulk_batches_created: { bg: '#F0FDF4', color: '#16A34A', border: '#BBF7D0' },
+  status_changed:       { bg: 'var(--teal-lt)', color: 'var(--teal)', border: 'var(--teal-md)' },
+  batch_cloned:         { bg: 'var(--success-lt)', color: 'var(--success)', border: 'var(--success-md)' },
+  bulk_batches_created: { bg: 'var(--success-lt)', color: 'var(--success)', border: 'var(--success-md)' },
   roster_uploaded:      { bg: 'var(--accent-lt)', color: 'var(--accent)', border: 'var(--accent-md)' },
   questions_replaced:   { bg: 'var(--accent-lt)', color: 'var(--accent)', border: 'var(--accent-md)' },
-  attempt_deleted:      { bg: 'var(--error-lt)', color: 'var(--error)', border: '#FECACA' },
-  batch_reset:          { bg: 'var(--error-lt)', color: 'var(--error)', border: '#FECACA' },
-  results_exported:     { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE' },
-  results_emailed:      { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE' },
+  attempt_deleted:      { bg: 'var(--error-lt)', color: 'var(--error)', border: 'var(--error-md)' },
+  batch_reset:          { bg: 'var(--error-lt)', color: 'var(--error)', border: 'var(--error-md)' },
+  results_exported:     { bg: 'var(--accent-lt)', color: 'var(--accent-deep)', border: 'var(--accent-md)' },
+  results_emailed:      { bg: 'var(--accent-lt)', color: 'var(--accent-deep)', border: 'var(--accent-md)' },
 }
 
 /**

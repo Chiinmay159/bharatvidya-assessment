@@ -77,4 +77,4 @@ export function ResultsTable({ batch, sorted, tabSwitches, sortKey, sortDir, tog
   )
 }
 
-const deleteLink = { all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--error)', padding: '3px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid #FECACA', background: 'var(--error-lt)', whiteSpace: 'nowrap' }
+const deleteLink = { all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--error)', padding: '3px 8px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--error-md)', background: 'var(--error-lt)', whiteSpace: 'nowrap' }

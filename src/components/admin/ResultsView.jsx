@@ -272,7 +272,7 @@ export function ResultsView({ batch, canManage, onBack, onViewAnalytics, onViewC
           .no-print { display: none !important; }
           .print-header { display: block !important; margin-bottom: 16px; }
           body { font-size: 12px; }
-          .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+          .card { box-shadow: none !important; border: 1px solid var(--border-md) !important; }
           table { font-size: 11px; }
           header, nav { display: none !important; }
         }
@@ -319,12 +319,12 @@ export function ResultsView({ batch, canManage, onBack, onViewAnalytics, onViewC
       </div>
 
       {emailMsg && (
-        <div style={{ background: 'var(--success-lt)', border: '1px solid #A7F3D0', borderRadius: 8, padding: '10px 14px', color: 'var(--success)', fontSize: 13, marginBottom: 16 }} className="no-print">
+        <div style={{ background: 'var(--success-lt)', border: '1px solid var(--success-md)', borderRadius: 8, padding: '10px 14px', color: 'var(--success)', fontSize: 13, marginBottom: 16 }} className="no-print">
           {emailMsg}
         </div>
       )}
       {actionError && (
-        <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16 }}>
+        <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 8, padding: '10px 14px', color: 'var(--error)', fontSize: 13, marginBottom: 16 }}>
           {actionError}
         </div>
       )}
@@ -359,12 +359,12 @@ export function ResultsView({ batch, canManage, onBack, onViewAnalytics, onViewC
             </button>
             {onViewAnalytics && (
               <button onClick={onViewAnalytics} style={btnSecondary}>
-                Item analysis &amp; integrity report \u2192
+                Item analysis &amp; integrity report →
               </button>
             )}
             {onViewCertificates && (
               <button onClick={onViewCertificates} style={btnSecondary}>
-                Certificates \u2192
+                Certificates →
               </button>
             )}
           </div>
@@ -440,4 +440,4 @@ export function ResultsView({ batch, canManage, onBack, onViewAnalytics, onViewC
 /* ── Styles ───────────────────────────────────────────────── */
 const backBtn = { all: 'unset', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 20 }
 const btnSecondary = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border-md)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }
-const btnDanger = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '8px 14px', borderRadius: 8, background: 'var(--error-lt)', color: 'var(--error)', border: '1px solid #FECACA', fontSize: 13, fontWeight: 500 }
+const btnDanger = { all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '8px 14px', borderRadius: 8, background: 'var(--error-lt)', color: 'var(--error)', border: '1px solid var(--error-md)', fontSize: 13, fontWeight: 500 }

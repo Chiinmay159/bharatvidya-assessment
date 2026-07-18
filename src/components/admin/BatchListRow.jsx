@@ -3,9 +3,9 @@ import { LockIcon } from './batchIcons'
 
 const STATUS_STYLE = {
   draft:     { bg: 'var(--surface-2)',  color: 'var(--text-3)',  border: 'var(--border)' },
-  scheduled: { bg: '#EFF6FF',           color: '#2563EB',        border: '#BFDBFE' },
-  active:    { bg: 'var(--success-lt)', color: 'var(--success)', border: '#A7F3D0' },
-  completed: { bg: '#F5F3FF',           color: '#7C3AED',        border: '#DDD6FE' },
+  scheduled: { bg: 'var(--teal-lt)',           color: 'var(--teal)',        border: 'var(--teal-md)' },
+  active:    { bg: 'var(--success-lt)', color: 'var(--success)', border: 'var(--success-md)' },
+  completed: { bg: 'var(--accent-lt)',           color: 'var(--accent-deep)',        border: 'var(--accent-md)' },
 }
 
 const TRANSITIONS = {
@@ -40,12 +40,12 @@ export function BatchListRow({
       <td style={{ padding: '13px 14px', fontWeight: 600, color: 'var(--text-1)', minWidth: 140 }}>
         {batch.name}
         {batch.access_code && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--warn)', background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 6, verticalAlign: 'middle' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--warn)', background: 'var(--warn-lt)', border: '1px solid var(--warn-md)', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 6, verticalAlign: 'middle' }}>
             <LockIcon /> Code
           </span>
         )}
         {batch.max_attempts > 1 && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 4, verticalAlign: 'middle' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: 'var(--teal)', background: 'var(--teal-lt)', border: '1px solid var(--teal-md)', borderRadius: 'var(--radius-pill)', padding: '1px 6px', marginLeft: 4, verticalAlign: 'middle' }}>
             {batch.max_attempts} attempts
           </span>
         )}
@@ -148,9 +148,9 @@ export function BatchListRow({
                 border: '1px solid',
                 whiteSpace: 'nowrap',
                 ...(t.variant === 'success'
-                  ? { background: 'var(--success-lt)', color: 'var(--success)', borderColor: '#A7F3D0' }
+                  ? { background: 'var(--success-lt)', color: 'var(--success)', borderColor: 'var(--success-md)' }
                   : t.variant === 'danger'
-                    ? { background: 'var(--error-lt)', color: 'var(--error)', borderColor: '#FECACA' }
+                    ? { background: 'var(--error-lt)', color: 'var(--error)', borderColor: 'var(--error-md)' }
                     : { background: 'var(--surface)', color: 'var(--text-2)', borderColor: 'var(--border-md)' }
                 ),
                 opacity: transitioning === batch.id ? .5 : 1,

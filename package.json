@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:design": "DESIGN_HARNESS=1 vite --port 5174"
   },
   "dependencies": {
     "@sentry/react": "^10.57.0",

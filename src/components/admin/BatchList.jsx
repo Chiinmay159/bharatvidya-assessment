@@ -229,12 +229,12 @@ export function BatchList({ canManage = true, canMonitor = true, onSelectBatch, 
           <div className="card u-slide-up" style={{ maxWidth: 380, width: '100%', padding: '28px 24px', boxShadow: 'var(--shadow-xl)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 700 }}>Confirm: {confirmAction.label}</h3>
             {confirmAction.next === 'active' && (
-              <div style={{ background: 'var(--warn-lt)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--warn)' }}>
+              <div style={{ background: 'var(--warn-lt)', border: '1px solid var(--warn-md)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--warn)' }}>
                 This will immediately allow students to begin the exam.
               </div>
             )}
             {confirmAction.next === 'completed' && (
-              <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--error)' }}>
+              <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--error)' }}>
                 This will end the exam for all students immediately.
               </div>
             )}
@@ -282,7 +282,7 @@ export function BatchList({ canManage = true, canMonitor = true, onSelectBatch, 
         <div className="admin-overlay">
           <div className="card u-slide-up" style={{ maxWidth: 420, width: '100%', padding: '28px 24px', boxShadow: 'var(--shadow-xl)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 700, color: 'var(--error)' }}>Delete batch permanently?</h3>
-            <div style={{ background: 'var(--error-lt)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 16, fontSize: 13, color: 'var(--error)', lineHeight: 1.6 }}>
+            <div style={{ background: 'var(--error-lt)', border: '1px solid var(--error-md)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 16, fontSize: 13, color: 'var(--error)', lineHeight: 1.6 }}>
               This will permanently delete <strong>{deleteTarget.name}</strong> and all its data: questions, roster, student attempts, responses, and tab switch logs. This cannot be undone.
             </div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>

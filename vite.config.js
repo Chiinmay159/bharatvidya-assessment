@@ -1,15 +1,35 @@
 /// <reference types="vitest/config" />
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// DESIGN_HARNESS=1 (npm run dev:design): alias the supabase client to the
+// fixture stub so /design-preview.html renders real admin views with sample
+// data and no session. Never set for builds or the normal dev server.
+const designHarness = globalThis.process?.env?.DESIGN_HARNESS === '1'
+
+const stubPath = fileURLToPath(new URL('./src/dev/supabase-stub.js', import.meta.url))
+
 export default defineConfig({
+  define: { 'import.meta.env.VITE_DESIGN_HARNESS': JSON.stringify(designHarness ? '1' : '0') },
   // SPA entry is app.html (not index.html) so the root "/" has no default
   // index for Vercel to serve — that lets the "/" -> /home.html rewrite (the
   // redesigned static landing) resolve cleanly at the root URL.
   build: { rollupOptions: { input: 'app.html' } },
   plugins: [
+    ...(designHarness ? [{
+      // DESIGN HARNESS ONLY: swap the supabase client for the fixture stub
+      // (post-resolution match — a plain alias can't catch relative imports).
+      name: 'design-harness-supabase-stub',
+      enforce: 'pre',
+      async resolveId(source, importer, options) {
+        if (!source.includes('lib/supabase')) return null
+        const r = await this.resolve(source, importer, { skipSelf: true, ...options })
+        return r?.id?.endsWith('/src/lib/supabase.ts') ? stubPath : null
+      },
+    }] : []),
     {
       // DEV ONLY: with the SPA entry renamed to app.html, vite's default SPA
       // fallback (-> /index.html) no longer works, so app routes 404 in dev.
