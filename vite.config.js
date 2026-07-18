@@ -17,7 +17,14 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+        // Don't precache the redesigned landing — it's a large, network-served
+        // static page (public/home.html), not part of the SPA app shell.
+        globIgnores: ['**/home.html'],
         navigateFallback: '/index.html',
+        // The SPA fallback must NOT shadow the static landing: "/" and
+        // "/home.html" navigations go to the network (Vercel serves home.html);
+        // everything else keeps the offline app-shell fallback.
+        navigateFallbackDenylist: [/^\/rest\//, /^\/auth\//, /^\/functions\//, /^\/$/, /^\/home\.html$/],
         runtimeCaching: [], // never intercept Supabase traffic — exam data is online-only by design
       },
     }),
