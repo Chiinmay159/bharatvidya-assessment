@@ -10,6 +10,19 @@ export default defineConfig({
   // redesigned static landing) resolve cleanly at the root URL.
   build: { rollupOptions: { input: 'app.html' } },
   plugins: [
+    {
+      // DEV ONLY: with the SPA entry renamed to app.html, vite's default SPA
+      // fallback (-> /index.html) no longer works, so app routes 404 in dev.
+      // Rewrite them to /app.html like the Vercel rewrite does in prod.
+      name: 'spa-fallback-to-app-html',
+      apply: 'serve',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (/^\/(admin|exam|verify|check)(\/|\?|$)/.test(req.url)) req.url = '/app.html'
+          next()
+        })
+      },
+    },
     react(),
     tailwindcss(),
     // App-shell precache only: a mid-exam reload on a dead network must not

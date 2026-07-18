@@ -32,11 +32,12 @@ export function AdminLayout({ user, children, navItems = [], orgLabel }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Gold rule + dark heritage top nav ─────────────── */}
-      <div aria-hidden="true" style={{ height: 3, background: 'linear-gradient(90deg, var(--accent-deep), var(--accent) 40%, var(--accent-md))' }} />
+      {/* ── Signature rule + carbon top nav (landing chrome) ── */}
+      <div aria-hidden="true" style={{ height: 2.5, background: 'var(--signature-rule)' }} />
       <header style={{
         position: 'sticky', top: 0, zIndex: 30,
-        background: 'var(--gradient-deep)',
+        background: 'rgba(20,18,14,.96)',
+        backdropFilter: 'blur(12px)',
         boxShadow: 'var(--shadow-md)',
         height: 56,
         display: 'flex', alignItems: 'stretch',
@@ -44,10 +45,10 @@ export function AdminLayout({ user, children, navItems = [], orgLabel }) {
         gap: 0,
       }}>
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 20, borderRight: '1px solid rgba(253,251,245,.12)', flexShrink: 0 }}>
-          <img src="/logo.png" alt="" style={{ width: 30, height: 30, borderRadius: '50%', boxShadow: '0 0 0 2px rgba(253,251,245,.15)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 20, borderRight: '1px solid rgba(251,247,238,.12)', flexShrink: 0 }}>
+          <img src="/logo.png" alt="" style={{ width: 30, height: 30, borderRadius: '50%', boxShadow: '0 0 0 2px rgba(251,247,238,.15)' }} />
           <div style={{ lineHeight: 1.2 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#FDFBF5', letterSpacing: '-.1px' }}>{orgLabel ?? 'Matra'}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#FBF7EE', letterSpacing: '-.1px' }}>{orgLabel ?? 'Matra'}</div>
             <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--accent-md)', letterSpacing: '.12em', textTransform: 'uppercase' }}>Admin Portal</div>
           </div>
         </div>
@@ -83,16 +84,16 @@ export function AdminLayout({ user, children, navItems = [], orgLabel }) {
             }}>
               {initials}
             </div>
-            <span style={{ fontSize: 12, color: 'rgba(253,251,245,.55)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 12, color: 'rgba(251,247,238,.55)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.email}
             </span>
           </div>
           <button
             onClick={handleSignOut}
             style={{
-              all: 'unset', cursor: 'pointer', padding: '5px 12px', fontSize: 12, fontWeight: 600,
-              color: 'rgba(253,251,245,.75)', border: '1px solid rgba(253,251,245,.25)',
-              borderRadius: 'var(--radius-sm)',
+              all: 'unset', cursor: 'pointer', padding: '5px 14px', fontSize: 12, fontWeight: 600,
+              color: 'rgba(251,247,238,.75)', border: '1px solid rgba(251,247,238,.25)',
+              borderRadius: 'var(--radius-pill)',
             }}
           >
             Sign out

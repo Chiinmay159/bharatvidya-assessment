@@ -1,12 +1,14 @@
 @import "tailwindcss";
 
 /* ── Design tokens ───────────────────────────────────────── */
-/* Matra heritage palette: ink blue, burgundy, antique gold,  */
-/* ivory. √2 type & spacing scale. 4px max radius. Ink scale  */
-/* for text. Apple clarity, Airbnb warmth, heritage soul.     */
+/* Landing system carried into the app: ivory ground, carbon  */
+/* structure, gold action thread, teal information accent,    */
+/* brand red. Fraunces display over Instrument Sans.          */
+/* √2 macro scale, 4px micro grid. One signature: the         */
+/* gold→teal→red rule.                                        */
 :root {
-  --font-sans:    system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: Georgia, 'Playfair Display', 'Times New Roman', serif;
+  --font-sans:    'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-mono:    ui-monospace, 'SF Mono', Consolas, monospace;
 
   /* Typography — √2 scale */
@@ -16,20 +18,24 @@
   --text-sm: 17px;
   --text-xs: 12px;
 
-  /* Spacing — √2 scale */
+  /* Spacing — √2 macro scale (micro values snap to the 4px grid) */
   --space-3xl: 100px;
   --space-2xl: 70px;
   --space-xl:  50px;
   --space-lg:  35px;
   --space-md:  24px;
-  --space-sm:  17px;
+  --space-sm:  16px;
   --space-xs:  12px;
 
-  /* Surfaces — ivory */
-  --bg:            #FAF8F2;
+  /* Surfaces — ivory (landing IVORY #FBF7EE) */
+  --bg:            #FBF7EE;
   --surface:       #FFFFFF;
-  --surface-2:     #F4F0E7;
+  --surface-2:     #F4EFE3;
   --surface-hover: #FCF9F1;
+
+  /* Structure — carbon (landing CARBON: headers, heroes, dark chrome) */
+  --carbon:        #14120E;
+  --carbon-2:      #1C1915;
 
   /* Borders — warm taupe */
   --border:        #E9E2D4;
@@ -40,22 +46,30 @@
   --text-2:        #45433D;
   --text-3:        #6B685F;
 
-  /* Accent — antique gold (the action thread) */
+  /* Accent — gold, the single action thread (landing GOLD/GOLD_L) */
   --accent:        #C9A227;
   --accent-deep:   #A8871E;
   --accent-lt:     #FBF5E2;
-  --accent-md:     #E8D48A;
+  --accent-md:     #E8C55B;
 
-  /* Brand — heritage ink blue (structure: heroes, headers, dark sections) */
-  --blue-deep:     #101D33;
-  --blue:          #1B2D4F;
-  --blue-mid:      #2A4571;
-  --blue-lt:       #EDF1F7;
+  /* Information accent — teal (landing TEAL; replaces heritage blue) */
+  --teal:          #0F7B7C;
+  --teal-deep:     #0A5B5C;
+  --teal-lt:       #EAF4F4;
 
-  /* Brand — burgundy (warmth: tenant layer, emphasis) */
-  --maroon:        #4A1219;
-  --maroon-mid:    #6B1C23;
-  --maroon-lt:     #F9F0F0;
+  /* Brand red (landing RED; live markers, brand emphasis — NOT errors) */
+  --red:           #A62B25;
+  --red-lt:        #F9EFEE;
+
+  /* Legacy aliases (heritage blue/maroon roles now resolve to the
+     landing family — kept so no reference can dangle) */
+  --blue-deep:     var(--teal-deep);
+  --blue:          var(--teal);
+  --blue-mid:      var(--teal);
+  --blue-lt:       var(--teal-lt);
+  --maroon:        var(--red);
+  --maroon-mid:    var(--red);
+  --maroon-lt:     var(--red-lt);
 
   /* Semantic — muted, not neon */
   --success:       #2D6A4F;
@@ -66,25 +80,31 @@
   --warn:          #92400E;
   --warn-lt:       #FFF8EB;
 
-  /* Brand gradients — ink blue flowing into burgundy */
-  --gradient-hero:  linear-gradient(150deg, #0D1830 0%, #1B2D4F 55%, #3A1521 130%);
-  --gradient-brand: linear-gradient(135deg, #1B2D4F 0%, #4A1219 140%);
-  --gradient-deep:  linear-gradient(165deg, #0D1830 0%, #14233E 100%);
+  /* Signature — the landing's gold→teal→red rule */
+  --signature-rule: linear-gradient(90deg, #C9A227 0%, #E8C55B 30%, #0F7B7C 68%, #A62B25 100%);
 
-  /* Shadows — cool ink tint, warm gold on hover */
-  --shadow-sm:         0 1px 2px rgba(16,29,51,.05), 0 1px 3px rgba(0,0,0,.03);
-  --shadow-md:         0 2px 8px rgba(16,29,51,.06), 0 6px 20px rgba(0,0,0,.04);
-  --shadow-lg:         0 4px 16px rgba(16,29,51,.07), 0 12px 40px rgba(0,0,0,.06);
-  --shadow-xl:         0 8px 32px rgba(16,29,51,.09), 0 24px 60px rgba(0,0,0,.10);
+  /* Dark grounds — carbon with quiet teal/red auras (replaces blue→burgundy) */
+  --gradient-hero:
+    radial-gradient(80% 60% at 85% 8%,  rgba(15,123,124,.14) 0%, transparent 55%),
+    radial-gradient(70% 55% at 8% 96%,  rgba(166,43,37,.10)  0%, transparent 55%),
+    linear-gradient(165deg, #1A1712 0%, #14120E 100%);
+  --gradient-brand: linear-gradient(135deg, #1C1915 0%, #14120E 100%);
+  --gradient-deep:  linear-gradient(165deg, #1A1712 0%, #14120E 100%);
+
+  /* Shadows — layered ink rings (S3), warm gold on hover */
+  --shadow-sm:         0 0 0 1px rgba(28,27,24,.06), 0 1px 2px -1px rgba(28,27,24,.06), 0 2px 4px 0 rgba(28,27,24,.04);
+  --shadow-md:         0 0 0 1px rgba(28,27,24,.05), 0 2px 8px rgba(28,27,24,.06), 0 6px 20px rgba(28,27,24,.05);
+  --shadow-lg:         0 4px 16px rgba(28,27,24,.07), 0 12px 40px rgba(28,27,24,.07);
+  --shadow-xl:         0 8px 32px rgba(28,27,24,.09), 0 24px 60px rgba(28,27,24,.11);
   --shadow-focus:      0 0 0 3px rgba(201,162,39,.2);
-  --shadow-card-hover: 0 2px 12px rgba(201,162,39,.12), 0 1px 4px rgba(0,0,0,.03);
+  --shadow-card-hover: 0 2px 12px rgba(201,162,39,.14), 0 1px 4px rgba(28,27,24,.04);
 
-  /* Radius — tight, not bubbly.  4px max. */
-  --radius-xs:   2px;
-  --radius-sm:   3px;
-  --radius-md:   4px;
-  --radius-lg:   4px;
-  --radius-xl:   4px;
+  /* Radius — 4px grid, concentric-friendly; pills carry the actions */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
   --radius-pill: 999px;
 
   /* Timing */
@@ -179,16 +199,22 @@ h1, h2 {
 }
 
 /* ── Card ────────────────────────────────────────────────── */
+/* Depth from layered shadow rings, not borders (S3). */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Heritage card — gold cap for focal moments ──────────── */
+/* ── Heritage card — signature cap for focal moments ─────── */
+/* The landing's gold→teal→red rule, reserved for auth/focal   */
+/* cards only. Painted as a background stripe so it follows    */
+/* the rounded corners cleanly.                                */
 .card-heritage {
-  border-top: 3px solid var(--accent);
+  background-image: var(--signature-rule);
+  background-repeat: no-repeat;
+  background-size: 100% 3px;
+  background-position: top left;
 }
 
 /* ── Batch card ──────────────────────────────────────────── */
@@ -197,17 +223,13 @@ h1, h2 {
   display: block;
   cursor: pointer;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition:
-    border-color var(--t-base) var(--ease-smooth),
-    box-shadow   var(--t-base) var(--ease-smooth);
+  transition: box-shadow var(--t-base) var(--ease-smooth);
 }
 .batch-card:hover {
-  border-color: var(--accent-md);
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: 0 0 0 1px var(--accent-md), var(--shadow-card-hover);
 }
 .batch-card:active { opacity: .95; }
 
@@ -241,7 +263,7 @@ h1, h2 {
 /* ── Form input ──────────────────────────────────────────── */
 .form-input {
   width: 100%;
-  padding: 11px 14px;
+  padding: 12px 16px;
   border: 1.5px solid var(--border-md);
   border-radius: var(--radius-md);
   font-size: 15px;
@@ -261,13 +283,15 @@ h1, h2 {
 .form-input::placeholder { color: var(--text-3); }
 
 /* ── Buttons ─────────────────────────────────────────────── */
+/* Landing CTAs: pill geometry, gold gradient primary, press   */
+/* scale .96 (interruptible transition, not keyframes).        */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 11px 22px;
-  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
@@ -279,19 +303,20 @@ h1, h2 {
   transition:
     background  var(--t-fast) var(--ease-smooth),
     box-shadow  var(--t-fast) var(--ease-smooth),
+    transform   var(--t-fast) var(--ease-smooth),
     opacity     var(--t-fast) var(--ease-smooth);
 }
-.btn:active:not(:disabled) { opacity: .9; }
+.btn:active:not(:disabled) { transform: scale(.96); }
 .btn:disabled { opacity: .42; cursor: not-allowed; }
 
 .btn-primary {
-  background: var(--accent);
-  color: var(--text-1);
-  box-shadow: 0 1px 3px rgba(201,162,39,.3);
+  background: linear-gradient(135deg, var(--accent-md), var(--accent));
+  color: var(--carbon);
+  box-shadow: 0 2px 10px rgba(201,162,39,.28);
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-deep);
-  box-shadow: 0 2px 8px rgba(201,162,39,.35);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  box-shadow: 0 2px 14px rgba(201,162,39,.35);
 }
 
 .btn-secondary {
@@ -333,7 +358,7 @@ h1, h2 {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  color: rgba(253,251,245,.62);
+  color: rgba(251,247,238,.62);
   padding: 0 14px;
   height: 100%;
   display: inline-flex;
@@ -352,17 +377,12 @@ h1, h2 {
   transform: scaleX(0);
   transition: transform var(--t-base) var(--ease-smooth);
 }
-.nav-tab:hover { color: rgba(253,251,245,.92); }
+.nav-tab:hover { color: rgba(251,247,238,.92); }
 .nav-tab.is-active {
   color: var(--accent-md);
   font-weight: 600;
 }
 .nav-tab.is-active::after { transform: scaleX(1); }
-
-/* ── Stat card — quiet blue cap line ─────────────────────── */
-.stat-card {
-  border-top: 2px solid var(--blue);
-}
 
 /* ── Admin table row hover ───────────────────────────────── */
 .table-row {
@@ -389,8 +409,8 @@ h1, h2 {
 /* ── Admin stat card ─────────────────────────────────────── */
 .stat-card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   padding: 16px 20px;
   flex: 1;
   min-width: 0;

@@ -2,13 +2,13 @@
 
 export function StatCard({ value, label, color, bg, border, icon }) {
   return (
-    <div className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
+    <div className="stat-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div style={{ width: 32, height: 32, borderRadius: 8, background: bg, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
           {icon}
         </div>
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-1)', lineHeight: 1, marginBottom: 4, letterSpacing: '-.5px' }}>{value}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-1)', lineHeight: 1, marginBottom: 4, letterSpacing: '-.5px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{label}</div>
     </div>
   )
@@ -34,7 +34,7 @@ export function EmptyCard({ icon, text }) {
   return (
     <div className="card" style={{ padding: '32px 24px', textAlign: 'center' }}>
       <div style={{ color: 'var(--text-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {icon}
         </div>
         <span style={{ fontSize: 13 }}>{text}</span>

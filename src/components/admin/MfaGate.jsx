@@ -127,7 +127,7 @@ export function MfaGate({ mode, userEmail, onVerified, onSignOut }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--gradient-hero)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="card u-slide-up" style={{ width: '100%', maxWidth: 400, padding: '36px 34px', textAlign: 'center', boxShadow: 'var(--shadow-xl)', borderTop: '3px solid var(--accent)' }}>
+      <div className="card card-heritage u-slide-up" style={{ width: '100%', maxWidth: 400, padding: '36px 32px', textAlign: 'center', boxShadow: 'var(--shadow-xl)' }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-.35px' }}>
           {mode === 'enroll' ? 'Set up two-factor authentication' : 'Two-factor authentication'}
         </h1>

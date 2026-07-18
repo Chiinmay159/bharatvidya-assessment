@@ -63,7 +63,7 @@ export function SeriesView({ userEmail }) {
         {seriesList?.map(s => {
           const total = (s.series_modules ?? []).reduce((sum, m) => sum + m.weight_marks, 0)
           return (
-            <button key={s.id} onClick={() => setSelected(s)} className="card" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--surface)' }}>
+            <button key={s.id} onClick={() => setSelected(s)} className="card" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 20px', boxShadow: 'var(--shadow-sm)', borderRadius: 'var(--radius-lg)', background: 'var(--surface)' }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{s.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>

@@ -165,7 +165,7 @@ export function BatchList({ canManage = true, canMonitor = true, onSelectBatch, 
       {/* Empty */}
       {!loading && batches.length === 0 && (
         <div className="card" style={{ padding: '64px 32px', textAlign: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <InboxIcon />
           </div>
           <p style={{ margin: '0 0 6px', fontWeight: 700, color: 'var(--text-1)', fontSize: 16 }}>No batches yet</p>
