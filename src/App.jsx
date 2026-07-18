@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
-import { LandingPage } from './pages/LandingPage'
+import { lazy, Suspense, useEffect } from 'react'
 import { StudentPage } from './pages/StudentPage'
 import { SystemCheckPage } from './pages/SystemCheckPage'
 import { VerifyPage } from './pages/VerifyPage'
@@ -10,6 +9,15 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary'
 const AdminPage = lazy(() =>
   import('./pages/AdminPage').then(m => ({ default: m.AdminPage }))
 )
+
+// The landing page at "/" is now the static redesign (public/home.html), served
+// by Vercel outside the SPA. If anything client-navigates to "/" (a stray link
+// or the "*" fallback), do a full load so the real landing renders — never the
+// retired React component.
+function HomeRedirect() {
+  useEffect(() => { window.location.replace('/home.html') }, [])
+  return null
+}
 
 function AdminFallback() {
   return (
@@ -27,7 +35,7 @@ export default function App() {
           Skip to main content
         </a>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<HomeRedirect />} />
           <Route path="/exam" element={<StudentPage />} />
           <Route path="/check" element={<SystemCheckPage />} />
           <Route path="/verify" element={<VerifyPage />} />

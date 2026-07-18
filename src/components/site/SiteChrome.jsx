@@ -26,13 +26,12 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50" style={{ background: 'rgba(20,18,14,.92)', backdropFilter: 'blur(12px)' }}>
       <div aria-hidden="true" className="h-[2.5px]" style={{ background: `linear-gradient(90deg, ${GOLD} 0%, ${GOLD_L} 30%, ${TEAL} 68%, ${RED} 100%)` }} />
       <nav className="mx-auto max-w-6xl px-5 md:px-8 h-16 flex items-center justify-between" aria-label="Primary">
-        <Link to="/" className="flex items-baseline gap-2.5 no-underline group">
+        <a href="/" className="flex items-baseline gap-2.5 no-underline group">
           <span className="font-[Fraunces,serif] text-[22px] font-bold tracking-tight" style={{ color: IVORY }}>Matra</span>
           <span className="hidden sm:inline text-[10px] font-semibold tracking-[.18em] uppercase" style={{ color: 'rgba(251,247,238,.45)' }}>Assessment Platform</span>
-        </Link>
+        </a>
         <div className="flex items-center gap-5 md:gap-7">
-          <Link to="/#students" className="hidden md:inline text-[13px] font-semibold no-underline transition-colors" style={navLink} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>Students</Link>
-          <Link to="/#institutions" className="hidden md:inline text-[13px] font-semibold no-underline transition-colors" style={navLink} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>Institutions</Link>
+          <a href="/#institutions" className="hidden md:inline text-[13px] font-semibold no-underline transition-colors" style={navLink} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>Institutions</a>
           <Link to="/verify" className="hidden sm:inline text-[13px] font-semibold no-underline transition-colors" style={navLink} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>Verify a certificate</Link>
           <Link to="/exam" className="no-underline rounded-full px-4 md:px-5 py-2 text-[13px] font-bold transition-transform hover:scale-[1.04] active:scale-[0.96]"
             style={{ background: `linear-gradient(135deg, ${GOLD_L}, ${GOLD})`, color: CARBON, boxShadow: '0 2px 14px rgba(201,162,39,.35)' }}>
@@ -71,7 +70,7 @@ export function SiteFooter() {
         <nav className={col} aria-label="For institutions">
           <span className="text-[11px] font-bold tracking-[.14em] uppercase" style={head}>Institutions</span>
           <Link to="/admin" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Admin portal</Link>
-          <Link to="/#institutions" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Why Matra</Link>
+          <a href="/#institutions" className="text-[13.5px] font-semibold no-underline py-1" style={link}>Why Matra</a>
         </nav>
         <nav className={col} aria-label="Trust">
           <span className="text-[11px] font-bold tracking-[.14em] uppercase" style={head}>Trust</span>
